@@ -37,6 +37,16 @@ const adminNavItems = [
     icon: 'FileText',
   },
   {
+    title: 'Order Dashboard',
+    href: '/orders',
+    icon: 'Package',
+  },
+  {
+    title: 'Asking Tasks',
+    href: '/asking-tasks',
+    icon: 'MessageSquare',
+  },
+  {
     title: 'Data to Folder',
     href: '/admin/data-to-folder',
     icon: 'FolderInput',

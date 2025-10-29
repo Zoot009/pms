@@ -41,6 +41,7 @@ export async function POST(
         order: {
           select: {
             deliveryDate: true,
+            folderLink: true,
           },
         },
       },
@@ -48,6 +49,14 @@ export async function POST(
 
     if (!task) {
       return NextResponse.json({ message: 'Task not found' }, { status: 404 })
+    }
+
+    // Check if order has folder link
+    if (!task.order.folderLink) {
+      return NextResponse.json(
+        { message: 'Cannot assign task. Order must have a folder link before tasks can be assigned.' },
+        { status: 400 }
+      )
     }
 
     // Check if deadline is before delivery date and time

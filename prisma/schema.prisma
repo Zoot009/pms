@@ -95,6 +95,10 @@ model User {
   createdOrderTypes OrderType[]   @relation("OrderTypeCreatedBy")
   askingTasks      AskingTask[]   @relation("AskingTaskAssignedTo")
   auditLogs        AuditLog[]
+  
+  // Asking Task Stage Relations
+  initialConfirmationUpdates AskingTaskStage[] @relation("InitialConfirmationUser")
+  updateRequestUpdates       AskingTaskStage[] @relation("UpdateRequestUser")
 
   @@index([email])
   @@index([role])
@@ -331,7 +335,7 @@ model OrderService {
 model Task {
   id          String       @id @default(cuid())
   orderId     String       @map("order_id")
-  serviceId   String       @map("service_id")
+  serviceId   String?      @map("service_id")
   teamId      String       @map("team_id")
   title       String       @db.VarChar(500)
   description String?      @db.Text
@@ -348,11 +352,11 @@ model Task {
   metadata    Json?
 
   // Relations
-  order      Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  service    Service @relation(fields: [serviceId], references: [id])
-  team       Team    @relation(fields: [teamId], references: [id])
-  assignedUser User? @relation("TaskAssignedTo", fields: [assignedTo], references: [id])
-  createdBy  User?   @relation("TaskCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  order      Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  service    Service? @relation(fields: [serviceId], references: [id])
+  team       Team     @relation(fields: [teamId], references: [id])
+  assignedUser User?  @relation("TaskAssignedTo", fields: [assignedTo], references: [id])
+  createdBy  User?    @relation("TaskCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
 
   @@index([orderId, status])
   @@index([serviceId])
@@ -378,6 +382,7 @@ model AskingTask {
   currentStage          AskingStageType @default(ASKED) @map("current_stage")
   priority              TaskPriority    @default(MEDIUM)
   deadline              DateTime?       @db.Timestamptz(6)
+  notes                 String?         @db.Text // Completion notes or issue details
   createdAt             DateTime        @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt             DateTime        @updatedAt @map("updated_at") @db.Timestamptz(6)
   completedAt           DateTime?       @map("completed_at") @db.Timestamptz(6)
@@ -396,30 +401,37 @@ model AskingTask {
   @@index([assignedTo, currentStage])
   @@index([currentStage, priority])
   @@index([deadline])
+  @@index([isFlagged])
   @@index([createdAt(sort: Desc)])
   @@map("asking_tasks")
 }
 
 model AskingTaskStage {
-  id                    String          @id @default(cuid())
-  askingTaskId          String          @map("asking_task_id")
-  stage                 AskingStageType
-  initialConfirmation   String?         @map("initial_confirmation") @db.VarChar(255) // Dropdown selection
-  initialStaff          String?         @map("initial_staff") @db.VarChar(255) // Staff name
-  updateRequest         String?         @map("update_request") @db.VarChar(255) // Dropdown selection
-  updateStaff           String?         @map("update_staff") @db.VarChar(255) // Staff name
-  completedBy           String?         @map("completed_by") @db.VarChar(255) // User ID
-  completedAt           DateTime?       @map("completed_at") @db.Timestamptz(6)
-  notes                 String?         @db.Text
-  createdAt             DateTime        @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt             DateTime        @updatedAt @map("updated_at") @db.Timestamptz(6)
+  id                             String          @id @default(cuid())
+  askingTaskId                   String          @map("asking_task_id")
+  stage                          AskingStageType
+  
+  // Initial Confirmation tracking
+  initialConfirmationValue       String?         @map("initial_confirmation_value") @db.VarChar(50) // 'Yes' or 'No'
+  initialConfirmationUpdatedBy   String?         @map("initial_confirmation_updated_by") @db.VarChar(255) // User ID
+  initialConfirmationUpdatedAt   DateTime?       @map("initial_confirmation_updated_at") @db.Timestamptz(6)
+  
+  // Update Request tracking
+  updateRequestValue             String?         @map("update_request_value") @db.VarChar(100) // 'Not Required', 'Asked Changes', 'Approved', 'Reshared waiting for approval'
+  updateRequestUpdatedBy         String?         @map("update_request_updated_by") @db.VarChar(255) // User ID
+  updateRequestUpdatedAt         DateTime?       @map("update_request_updated_at") @db.Timestamptz(6)
+  
+  createdAt                      DateTime        @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt                      DateTime        @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   // Relations
-  askingTask AskingTask @relation(fields: [askingTaskId], references: [id], onDelete: Cascade)
+  askingTask                     AskingTask @relation(fields: [askingTaskId], references: [id], onDelete: Cascade)
+  initialConfirmationUser        User?      @relation("InitialConfirmationUser", fields: [initialConfirmationUpdatedBy], references: [id], onDelete: SetNull)
+  updateRequestUser              User?      @relation("UpdateRequestUser", fields: [updateRequestUpdatedBy], references: [id], onDelete: SetNull)
 
   @@index([askingTaskId, stage])
   @@index([stage])
-  @@index([completedAt])
+  @@index([createdAt(sort: Desc)])
   @@map("asking_task_stages")
 }
 

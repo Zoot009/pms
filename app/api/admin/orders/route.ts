@@ -190,18 +190,41 @@ export async function POST(req: NextRequest) {
           })),
         })
 
-        // Create tasks for each service with status NOT_ASSIGNED
-        const taskData = orderType.services.map((os) => ({
-          orderId: newOrder.id,
-          serviceId: os.serviceId,
-          teamId: os.service.teamId,
-          title: `${os.service.name} - ${newOrder.orderNumber}`,
-          status: 'NOT_ASSIGNED' as const,
-        }))
+        // Separate regular tasks and asking services
+        const regularServices = orderType.services.filter(os => os.service.type === 'SERVICE_TASK')
+        const askingServices = orderType.services.filter(os => os.service.type === 'ASKING_SERVICE')
 
-        await tx.task.createMany({
-          data: taskData,
-        })
+        // Create regular tasks for SERVICE_TASK type
+        if (regularServices.length > 0) {
+          const taskData = regularServices.map((os) => ({
+            orderId: newOrder.id,
+            serviceId: os.serviceId,
+            teamId: os.service.teamId,
+            title: `${os.service.name} - ${newOrder.orderNumber}`,
+            status: 'NOT_ASSIGNED' as const,
+          }))
+
+          await tx.task.createMany({
+            data: taskData,
+          })
+        }
+
+        // Create asking tasks for ASKING_SERVICE type
+        if (askingServices.length > 0) {
+          for (const os of askingServices) {
+            await tx.askingTask.create({
+              data: {
+                orderId: newOrder.id,
+                serviceId: os.serviceId,
+                teamId: os.service.teamId,
+                title: `${os.service.name} - ${newOrder.orderNumber}`,
+                description: `Asking service for order ${newOrder.orderNumber}`,
+                currentStage: 'ASKED',
+                priority: 'MEDIUM',
+              },
+            })
+          }
+        }
       }
 
       // Create audit log

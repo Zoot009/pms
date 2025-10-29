@@ -299,12 +299,26 @@ export default function OrderDetailPage() {
                   {daysLeft < 0 ? 'Overdue' : `${daysLeft} days left`}
                 </Badge>
                 {!order.folderLink && (
-                  <Badge variant="secondary">No Folder Link</Badge>
+                  <Badge variant="destructive">No Folder Link</Badge>
                 )}
               </div>
             </div>
           </CardHeader>
           <CardContent>
+            {/* Warning Alert if no folder link */}
+            {!order.folderLink && (
+              <div className="mb-4 p-4 bg-destructive/10 border border-destructive/20 rounded-lg flex items-start gap-3">
+                <AlertCircle className="h-5 w-5 text-destructive mt-0.5" />
+                <div>
+                  <div className="font-semibold text-destructive">Folder Link Required</div>
+                  <div className="text-sm text-muted-foreground">
+                    A folder link must be added to this order before tasks can be assigned. 
+                    Please add the folder link in the order management section.
+                  </div>
+                </div>
+              </div>
+            )}
+
             <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
               <div>
                 <div className="text-sm font-medium text-muted-foreground mb-1">Customer Name</div>
@@ -404,7 +418,10 @@ export default function OrderDetailPage() {
                       )}
                     </div>
                     {task.status === 'NOT_ASSIGNED' && (
-                      <Button onClick={() => openAssignDialog(task)}>
+                      <Button 
+                        onClick={() => openAssignDialog(task)}
+                        disabled={!order.folderLink}
+                      >
                         Assign Task
                       </Button>
                     )}

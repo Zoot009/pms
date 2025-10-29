@@ -140,11 +140,13 @@ async function OrderTypesTable({
   )
 }
 
-export default function OrderTypesPage({
+export default async function OrderTypesPage({
   searchParams,
 }: {
-  searchParams: { search?: string; status?: string }
+  searchParams: Promise<{ search?: string; status?: string }>
 }) {
+  const params = await searchParams
+  
   return (
     <div className="p-8 space-y-6">
       <div className="flex items-center justify-between">
@@ -178,10 +180,10 @@ export default function OrderTypesPage({
                     name="search"
                     placeholder="Search order types..."
                     className="pl-8"
-                    defaultValue={searchParams.search}
+                    defaultValue={params.search}
                   />
                 </div>
-                <Select name="status" defaultValue={searchParams.status || 'all'}>
+                <Select name="status" defaultValue={params.status || 'all'}>
                   <SelectTrigger className="w-[140px]">
                     <SelectValue placeholder="Status" />
                   </SelectTrigger>
@@ -201,8 +203,8 @@ export default function OrderTypesPage({
         <CardContent>
           <Suspense fallback={<OrderTypesTableSkeleton />}>
             <OrderTypesTable
-              searchQuery={searchParams.search}
-              statusFilter={searchParams.status}
+              searchQuery={params.search}
+              statusFilter={params.status}
             />
           </Suspense>
         </CardContent>

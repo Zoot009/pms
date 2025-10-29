@@ -17,6 +17,16 @@ const memberNavItems = [
     icon: 'ListTodo',
   },
   {
+    title: 'Orders',
+    href: '/orders',
+    icon: 'Package',
+  },
+  {
+    title: 'Asking Tasks',
+    href: '/asking-tasks',
+    icon: 'MessageSquare',
+  },
+  {
     title: 'Completed Tasks',
     href: '/member/completed',
     icon: 'CheckCircle2',

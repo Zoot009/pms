@@ -32,7 +32,11 @@ interface Task {
   status: string
   priority: string
   deadline: string | null
-  serviceName: string
+  service: {
+    name: string
+    type: string
+    timeLimit: number | null
+  }
   startedAt: string | null
   completedAt: string | null
   completionNotes: string | null
@@ -41,10 +45,14 @@ interface Task {
 
 interface AskingTask {
   id: string
-  serviceName: string
+  service: {
+    name: string
+  }
+  team: {
+    name: string
+  }
   currentStage: string
   deadline: string | null
-  notes: string | null
   stageHistory: any[]
 }
 
@@ -53,12 +61,15 @@ interface OrderDetail {
   orderNumber: string
   customerName: string
   createdAt: string
-  amount: number
-  deliveryDate: string | null
+  amount: number | string
+  orderDate: string
+  deliveryDate: string
+  deliveryTime: string | null
   folderLink: string | null
-  orderTypeName: string
+  orderType: {
+    name: string
+  }
   status: string
-  priority: string
   tasks: Task[]
   askingTasks: AskingTask[]
 }
@@ -80,8 +91,10 @@ export default function TaskDetailPage({ params }: { params: Promise<{ orderId: 
   const fetchOrderDetails = async () => {
     try {
       setIsLoading(true)
-  const response = await axios.get(`/api/member/tasks/order/${resolvedParams.orderId}`)
-      setOrder(response.data)
+      const response = await axios.get(`/api/member/tasks/order/${resolvedParams.orderId}`)
+      console.log('Order data:', response.data.order)
+      console.log('Asking tasks:', response.data.order?.askingTasks)
+      setOrder(response.data.order)
     } catch (error) {
       console.error('Error fetching order details:', error)
     } finally {
@@ -182,6 +195,10 @@ export default function TaskDetailPage({ params }: { params: Promise<{ orderId: 
   }
 
   const daysOverdue = getDaysOverdue(order.deliveryDate)
+  
+  // Separate regular tasks and asking service tasks
+  const regularTasks = order.tasks.filter(task => task.service.type === 'SERVICE_TASK')
+  const askingServiceTasks = order.tasks.filter(task => task.service.type === 'ASKING_SERVICE')
 
   return (
     <div className="flex flex-1 flex-col gap-4 p-4 pt-0">
@@ -200,7 +217,6 @@ export default function TaskDetailPage({ params }: { params: Promise<{ orderId: 
         </div>
         <div className="flex items-center gap-2">
           {getStatusBadge(order.status)}
-          {getPriorityBadge(order.priority)}
           {daysOverdue > 0 && (
             <Badge variant="destructive">
               {daysOverdue} days overdue
@@ -236,7 +252,7 @@ export default function TaskDetailPage({ params }: { params: Promise<{ orderId: 
               <div className="text-sm text-muted-foreground">Order Amount</div>
               <div className="flex items-center gap-2 mt-1">
                 <DollarSign className="h-4 w-4" />
-                <span className="font-medium">${order.amount.toLocaleString()}</span>
+                <span className="font-medium">${typeof order.amount === 'number' ? order.amount.toLocaleString() : order.amount}</span>
               </div>
             </div>
             <div>
@@ -254,7 +270,7 @@ export default function TaskDetailPage({ params }: { params: Promise<{ orderId: 
             <div>
               <div className="text-sm text-muted-foreground">Order Type</div>
               <div className="mt-1">
-                <Badge variant="outline">{order.orderTypeName}</Badge>
+                <Badge variant="outline">{order.orderType.name}</Badge>
               </div>
             </div>
             {order.folderLink && (
@@ -295,17 +311,17 @@ export default function TaskDetailPage({ params }: { params: Promise<{ orderId: 
           <CardDescription>Tasks assigned to you for this order</CardDescription>
         </CardHeader>
         <CardContent>
-          {order.tasks.length === 0 ? (
-            <p className="text-muted-foreground text-center py-8">No tasks assigned</p>
+          {regularTasks.length === 0 ? (
+            <p className="text-muted-foreground text-center py-8">No regular tasks assigned</p>
           ) : (
             <div className="space-y-4">
-              {order.tasks.map((task) => (
+              {regularTasks.map((task) => (
                 <Card key={task.id}>
                   <CardHeader>
                     <div className="flex items-start justify-between">
                       <div className="space-y-1">
                         <CardTitle className="text-lg">{task.title}</CardTitle>
-                        <CardDescription>{task.serviceName}</CardDescription>
+                        <CardDescription>{task.service.name}</CardDescription>
                         {task.description && (
                           <p className="text-sm mt-2">{task.description}</p>
                         )}
@@ -416,8 +432,81 @@ export default function TaskDetailPage({ params }: { params: Promise<{ orderId: 
         </CardContent>
       </Card>
 
-      {/* Asking Tasks */}
-      {order.askingTasks.length > 0 && (
+      {/* Asking Service Tasks */}
+      {askingServiceTasks.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Asking Tasks</CardTitle>
+            <CardDescription>Client communication tasks for this order</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-3">
+              {askingServiceTasks.map((task) => (
+                <div
+                  key={task.id}
+                  className="flex items-center justify-between p-3 border rounded-lg"
+                >
+                  <div className="space-y-1 flex-1">
+                    <div className="flex items-center gap-2">
+                      <div className="font-medium">{task.service.name}</div>
+                      {getStatusBadge(task.status)}
+                      {getPriorityBadge(task.priority)}
+                    </div>
+                    {task.deadline && (
+                      <div className="text-sm text-muted-foreground">
+                        Deadline: {format(new Date(task.deadline), 'MMM d, yyyy, hh:mm a')}
+                      </div>
+                    )}
+                    {task.startedAt && (
+                      <div className="text-sm text-muted-foreground">
+                        Started: {format(new Date(task.startedAt), 'MMM d, yyyy, hh:mm a')}
+                      </div>
+                    )}
+                    {task.completedAt && (
+                      <div className="text-sm text-muted-foreground">
+                        Completed: {format(new Date(task.completedAt), 'MMM d, yyyy, hh:mm a')}
+                      </div>
+                    )}
+                  </div>
+                  <div className="flex gap-2">
+                    {task.status === 'ASSIGNED' && (
+                      <Button
+                        onClick={() => handleStartTask(task.id)}
+                        disabled={actionLoading === task.id}
+                        size="sm"
+                      >
+                        {actionLoading === task.id ? (
+                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        ) : (
+                          <Play className="h-4 w-4 mr-2" />
+                        )}
+                        Start
+                      </Button>
+                    )}
+                    {task.status === 'IN_PROGRESS' && (
+                      <Button
+                        onClick={() => handleCompleteTask(task.id)}
+                        disabled={actionLoading === task.id}
+                        size="sm"
+                      >
+                        {actionLoading === task.id ? (
+                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        ) : (
+                          <CheckCircle2 className="h-4 w-4 mr-2" />
+                        )}
+                        Complete
+                      </Button>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Asking Tasks from AskingTask model */}
+      {order.askingTasks && order.askingTasks.length > 0 && (
         <Card>
           <CardHeader>
             <CardTitle>Asking Tasks</CardTitle>
@@ -432,17 +521,12 @@ export default function TaskDetailPage({ params }: { params: Promise<{ orderId: 
                 >
                   <div className="space-y-1 flex-1">
                     <div className="flex items-center gap-2">
-                      <div className="font-medium">{askingTask.serviceName}</div>
+                      <div className="font-medium">{askingTask.service.name}</div>
                       <Badge>{askingTask.currentStage.replace('_', ' ')}</Badge>
                     </div>
                     {askingTask.deadline && (
                       <div className="text-sm text-muted-foreground">
                         Deadline: {format(new Date(askingTask.deadline), 'MMM d, yyyy, hh:mm a')}
-                      </div>
-                    )}
-                    {askingTask.notes && (
-                      <div className="text-sm text-muted-foreground">
-                        Notes: {askingTask.notes}
                       </div>
                     )}
                   </div>
@@ -463,7 +547,10 @@ export default function TaskDetailPage({ params }: { params: Promise<{ orderId: 
       {/* Asking Task Modal */}
       {selectedAskingTask && (
         <AskingTaskModal
-          askingTask={selectedAskingTask}
+          askingTask={{
+            ...selectedAskingTask,
+            serviceName: selectedAskingTask.service.name,
+          }}
           isOpen={isModalOpen}
           onClose={() => {
             setIsModalOpen(false)
