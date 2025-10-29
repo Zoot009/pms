@@ -267,7 +267,7 @@ export default async function TeamLeaderDashboard() {
                       <div className="space-y-1">
                         <div className="font-medium">{task.title}</div>
                         <div className="text-sm text-muted-foreground">
-                          Order: {task.order.orderNumber} | Service: {task.service.name}
+                          Order: {task.order.orderNumber} | Service: {task.service?.name || 'Custom Task'}
                         </div>
                       </div>
                       <Button asChild size="sm">

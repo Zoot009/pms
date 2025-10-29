@@ -460,7 +460,7 @@ export default function OrderDetailPage({ params }: OrderDetailPageProps) {
                 <div className="flex-1">
                   <div className="flex items-center gap-2 mb-1">
                     <Badge variant="secondary">ASKING</Badge>
-                    <span className="font-medium">{task.service.name}</span>
+                    <span className="font-medium">{task.service?.name || 'Custom Task'}</span>
                   </div>
                   <div className="text-sm text-muted-foreground">
                     (Current phase: {task.currentStage.replace('_', ' ')})
@@ -513,7 +513,7 @@ export default function OrderDetailPage({ params }: OrderDetailPageProps) {
                 >
                   <div className="flex-1">
                     <div className="flex items-center gap-2 mb-1">
-                      <span className="font-medium">{task.service.name}</span>
+                      <span className="font-medium">{task.service?.name || 'Custom Task'}</span>
                       <Badge variant={task.status === 'DONE' ? 'default' : 'secondary'}>
                         {task.status}
                       </Badge>
@@ -571,7 +571,7 @@ export default function OrderDetailPage({ params }: OrderDetailPageProps) {
                 >
                   <div className="flex items-center justify-between mb-3">
                     <div className="flex-1">
-                      <div className="font-medium mb-1">{task.service.name}</div>
+                      <div className="font-medium mb-1">{task.service?.name || 'Custom Task'}</div>
                       <div className="flex items-center gap-2">
                         <Badge 
                           variant={task.completedAt ? 'default' : 'secondary'}

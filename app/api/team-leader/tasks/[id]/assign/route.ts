@@ -75,25 +75,28 @@ export async function POST(
 
     // Verify user is team leader of the service's team
     // Team leaders can ONLY assign tasks from their own team's services
-    if (!task.service.teamId) {
-      return NextResponse.json(
-        { message: 'Service must belong to a team' },
-        { status: 400 }
-      )
-    }
+    // For custom tasks (no service), allow any team leader to assign
+    if (task.service) {
+      if (!task.service.teamId) {
+        return NextResponse.json(
+          { message: 'Service must belong to a team' },
+          { status: 400 }
+        )
+      }
 
-    const team = await prisma.team.findUnique({
-      where: {
-        id: task.service.teamId,
-        leaderId: user.id,
-      },
-    })
+      const team = await prisma.team.findUnique({
+        where: {
+          id: task.service.teamId,
+          leaderId: user.id,
+        },
+      })
 
-    if (!team) {
-      return NextResponse.json(
-        { message: 'You can only assign tasks from your own team\'s services' },
-        { status: 403 }
-      )
+      if (!team) {
+        return NextResponse.json(
+          { message: 'You can only assign tasks from your own team\'s services' },
+          { status: 403 }
+        )
+      }
     }
 
     // Verify the assignee is a member of one of the team leader's teams

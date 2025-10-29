@@ -197,8 +197,8 @@ export default function TaskDetailPage({ params }: { params: Promise<{ orderId: 
   const daysOverdue = getDaysOverdue(order.deliveryDate)
   
   // Separate regular tasks and asking service tasks
-  const regularTasks = order.tasks.filter(task => task.service.type === 'SERVICE_TASK')
-  const askingServiceTasks = order.tasks.filter(task => task.service.type === 'ASKING_SERVICE')
+  const regularTasks = order.tasks.filter(task => task.service?.type === 'SERVICE_TASK')
+  const askingServiceTasks = order.tasks.filter(task => task.service?.type === 'ASKING_SERVICE')
 
   return (
     <div className="flex flex-1 flex-col gap-4 p-4 pt-0">
@@ -321,7 +321,7 @@ export default function TaskDetailPage({ params }: { params: Promise<{ orderId: 
                     <div className="flex items-start justify-between">
                       <div className="space-y-1">
                         <CardTitle className="text-lg">{task.title}</CardTitle>
-                        <CardDescription>{task.service.name}</CardDescription>
+                        <CardDescription>{task.service?.name || 'Custom Task'}</CardDescription>
                         {task.description && (
                           <p className="text-sm mt-2">{task.description}</p>
                         )}
@@ -448,7 +448,7 @@ export default function TaskDetailPage({ params }: { params: Promise<{ orderId: 
                 >
                   <div className="space-y-1 flex-1">
                     <div className="flex items-center gap-2">
-                      <div className="font-medium">{task.service.name}</div>
+                      <div className="font-medium">{task.service?.name || 'Custom Task'}</div>
                       {getStatusBadge(task.status)}
                       {getPriorityBadge(task.priority)}
                     </div>
@@ -521,7 +521,7 @@ export default function TaskDetailPage({ params }: { params: Promise<{ orderId: 
                 >
                   <div className="space-y-1 flex-1">
                     <div className="flex items-center gap-2">
-                      <div className="font-medium">{askingTask.service.name}</div>
+                      <div className="font-medium">{askingTask.service?.name || 'Custom Task'}</div>
                       <Badge>{askingTask.currentStage.replace('_', ' ')}</Badge>
                     </div>
                     {askingTask.deadline && (
@@ -549,7 +549,7 @@ export default function TaskDetailPage({ params }: { params: Promise<{ orderId: 
         <AskingTaskModal
           askingTask={{
             ...selectedAskingTask,
-            serviceName: selectedAskingTask.service.name,
+            serviceName: selectedAskingTask.service?.name || 'Custom Task',
           }}
           isOpen={isModalOpen}
           onClose={() => {

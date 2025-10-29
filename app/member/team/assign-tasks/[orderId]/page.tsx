@@ -190,7 +190,7 @@ export default function OrderDetailPage() {
   }
 
   const canAssignTask = (task: Task) => {
-    return task.service.teamId && myTeamIds.includes(task.service.teamId)
+    return task.service?.teamId && myTeamIds.includes(task.service.teamId)
   }
 
   const getStatusBadge = (status: string) => {
@@ -389,13 +389,13 @@ export default function OrderDetailPage() {
                   <div className="flex items-start justify-between">
                     <div className="space-y-2 flex-1">
                       <div className="flex items-center gap-2">
-                        <h3 className="font-semibold">{task.service.name}</h3>
+                        <h3 className="font-semibold">{task.service?.name || 'Custom Task'}</h3>
                         {getStatusBadge(task.status)}
                         {getPriorityBadge(task.priority)}
                       </div>
                       <div className="text-sm text-muted-foreground">
-                        {task.service.type.replace('_', ' ')}
-                        {task.service.timeLimit && ` · ${task.service.timeLimit}h time limit`}
+                        {task.service?.type.replace('_', ' ') || 'Custom'}
+                        {task.service?.timeLimit && ` · ${task.service.timeLimit}h time limit`}
                       </div>
                       {task.assignedUser && (
                         <div className="flex items-center gap-2 text-sm">
@@ -447,7 +447,7 @@ export default function OrderDetailPage() {
                   <div className="flex items-start justify-between">
                     <div className="space-y-2 flex-1">
                       <div className="flex items-center gap-2">
-                        <h3 className="font-semibold">{task.service.name}</h3>
+                        <h3 className="font-semibold">{task.service?.name || 'Custom Task'}</h3>
                         {getStatusBadge(task.status)}
                         {getPriorityBadge(task.priority)}
                         <Badge variant="outline" className="text-xs">
@@ -455,7 +455,7 @@ export default function OrderDetailPage() {
                         </Badge>
                       </div>
                       <div className="text-sm text-muted-foreground">
-                        {task.service.type.replace('_', ' ')}
+                        {task.service?.type.replace('_', ' ') || 'Custom'}
                       </div>
                       {task.assignedUser && (
                         <div className="flex items-center gap-2 text-sm">
@@ -492,10 +492,10 @@ export default function OrderDetailPage() {
             <div className="space-y-4">
               {/* Task Info */}
               <div className="p-3 bg-muted rounded-lg space-y-2">
-                <div className="font-medium">{selectedTask?.service.name}</div>
+                <div className="font-medium">{selectedTask?.service?.name || 'Custom Task'}</div>
                 <div className="text-sm text-muted-foreground">
-                  {selectedTask?.service.type.replace('_', ' ')}
-                  {selectedTask?.service.timeLimit && ` · ${selectedTask.service.timeLimit}h time limit`}
+                  {selectedTask?.service?.type.replace('_', ' ') || 'Custom'}
+                  {selectedTask?.service?.timeLimit && ` · ${selectedTask.service.timeLimit}h time limit`}
                 </div>
                 <div className="flex items-center gap-2 text-sm">
                   <AlertCircle className="h-4 w-4 text-orange-500" />

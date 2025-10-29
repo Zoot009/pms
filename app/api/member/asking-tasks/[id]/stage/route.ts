@@ -55,13 +55,12 @@ export async function PATCH(
       data: {
         askingTaskId: id,
         stage: stageToUse,
-        initialConfirmation,
-        initialStaff,
-        updateRequest,
-        updateStaff,
-        notes,
-        completedBy: user.id,
-        completedAt: new Date()
+        initialConfirmationValue: initialConfirmation,
+        initialConfirmationUpdatedBy: initialStaff,
+        initialConfirmationUpdatedAt: initialConfirmation ? new Date() : null,
+        updateRequestValue: updateRequest,
+        updateRequestUpdatedBy: updateStaff,
+        updateRequestUpdatedAt: updateRequest ? new Date() : null
       }
     })
 
@@ -97,7 +96,7 @@ export async function PATCH(
       success: true,
       askingTask: {
         id: updatedTask.id,
-        serviceName: updatedTask.service.name,
+        serviceName: updatedTask.service?.name || 'Custom Task',
         currentStage: updatedTask.currentStage,
         deadline: updatedTask.deadline,
         stageHistory: updatedTask.stageHistory,

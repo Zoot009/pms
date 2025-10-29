@@ -38,7 +38,7 @@ async function main() {
     const existingAskingTask = await prisma.askingTask.findFirst({
       where: {
         orderId: task.orderId,
-        serviceId: task.serviceId,
+        serviceId: task.serviceId || undefined,
       },
     })
 
@@ -51,14 +51,14 @@ async function main() {
     await prisma.askingTask.create({
       data: {
         orderId: task.orderId,
-        serviceId: task.serviceId,
+        serviceId: task.serviceId || undefined,
         teamId: task.teamId,
         title: task.title,
         description: task.description,
-        assignedTo: task.assignedTo,
+        assignedTo: task.assignedTo || undefined,
         currentStage: 'ASKED',
         priority: task.priority,
-        deadline: task.deadline,
+        deadline: task.deadline || undefined,
         createdAt: task.createdAt,
         updatedAt: task.updatedAt,
       },

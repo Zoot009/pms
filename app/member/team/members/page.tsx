@@ -251,7 +251,7 @@ export default function TeamMembersPage() {
                                   <div className="flex-1 truncate">
                                     <div className="font-medium truncate">{task.title}</div>
                                     <div className="text-muted-foreground truncate">
-                                      {task.service.name}
+                                      {task.service?.name || 'Custom Task'}
                                     </div>
                                   </div>
                                   <div className="flex items-center gap-1 shrink-0">

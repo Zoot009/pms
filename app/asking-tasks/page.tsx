@@ -304,7 +304,7 @@ export default function AskingTasksPage() {
                         className={task.isFlagged ? 'border-red-600' : ''}
                       />
                     </TableCell>
-                    <TableCell className="font-medium">{task.service.name}</TableCell>
+                    <TableCell className="font-medium">{task.service?.name || 'Custom Task'}</TableCell>
                     <TableCell>
                       <div className="flex items-center gap-2">
                         <span>#{task.order.orderNumber}</span>
@@ -381,7 +381,7 @@ export default function AskingTasksPage() {
               {selectedTask && (
                 <>
                   <div className="mt-2">
-                    <strong>Service:</strong> {selectedTask.service.name}
+                    <strong>Service:</strong> {selectedTask.service?.name || 'Custom Task'}
                   </div>
                   <div>
                     <strong>Order:</strong> #{selectedTask.order.orderNumber}

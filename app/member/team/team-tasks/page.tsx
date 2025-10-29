@@ -152,7 +152,7 @@ export default function TeamTasksPage() {
 
     // Filter by service type
     if (serviceTypeFilter !== 'all') {
-      filtered = filtered.filter((task) => task.service.type === serviceTypeFilter)
+      filtered = filtered.filter((task) => task.service?.type === serviceTypeFilter)
     }
 
     // Filter by search query
@@ -161,7 +161,7 @@ export default function TeamTasksPage() {
         (task) =>
           task.order.orderNumber.toLowerCase().includes(searchQuery.toLowerCase()) ||
           task.order.customerName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          task.service.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          task.service?.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
           task.title.toLowerCase().includes(searchQuery.toLowerCase())
       )
     }
@@ -427,9 +427,9 @@ export default function TeamTasksPage() {
                         </TableCell>
                         <TableCell>
                           <div className="space-y-1">
-                            <div className="text-sm">{task.service.name}</div>
+                            <div className="text-sm">{task.service?.name || 'Custom Task'}</div>
                             <div className="text-xs text-muted-foreground">
-                              {task.service.type.replace('_', ' ')}
+                              {task.service?.type.replace('_', ' ') || 'Custom'}
                             </div>
                           </div>
                         </TableCell>
@@ -645,7 +645,7 @@ export default function TeamTasksPage() {
                   <div className="mt-4 p-3 bg-muted rounded-lg space-y-1">
                     <div className="font-medium text-foreground">{discardTask.title}</div>
                     <div className="text-sm">Order: #{discardTask.order.orderNumber}</div>
-                    <div className="text-sm">Service: {discardTask.service.name}</div>
+                    <div className="text-sm">Service: {discardTask.service?.name || 'Custom Task'}</div>
                     {discardTask.assignedUser && (
                       <div className="text-sm">
                         Currently assigned to: {discardTask.assignedUser.displayName || discardTask.assignedUser.email}

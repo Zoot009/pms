@@ -82,8 +82,8 @@ export async function GET() {
       deadline: task.deadline,
       orderNumber: task.order.orderNumber,
       customerName: task.order.customerName,
-      serviceName: task.service.name,
-      serviceType: task.service.type,
+      serviceName: task.service?.name || 'Custom Task',
+      serviceType: task.service?.type || 'CUSTOM',
       createdAt: task.createdAt,
     }))
 
@@ -108,7 +108,7 @@ export async function GET() {
         deadline: task.deadline,
         priority: task.priority,
         orderNumber: task.order.orderNumber,
-        serviceName: task.service.name,
+        serviceName: task.service?.name || 'Custom Task',
       }))
 
     return NextResponse.json({

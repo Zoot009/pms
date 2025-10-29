@@ -107,9 +107,9 @@ export async function GET(request: NextRequest) {
         startedAt: task.startedAt,
         completedAt: task.completedAt,
         notes: task.notes,
-        serviceName: task.service.name,
-        serviceType: task.service.type,
-        serviceTimeLimit: task.service.timeLimit,
+        serviceName: task.service?.name || 'Custom Task',
+        serviceType: task.service?.type || 'CUSTOM',
+        serviceTimeLimit: task.service?.timeLimit || null,
         createdAt: task.createdAt,
       })
     })
