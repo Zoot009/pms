@@ -56,6 +56,7 @@ export async function GET(request: NextRequest) {
             orderNumber: true,
             customerName: true,
             deliveryDate: true,
+            amount: true,
             folderLink: true,
           },
         },

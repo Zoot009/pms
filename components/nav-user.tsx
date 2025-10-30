@@ -1,8 +1,5 @@
 "use client"
 
-import { useRouter } from "next/navigation"
-import axios from "axios"
-import { toast } from "sonner"
 import {
   BadgeCheck,
   Bell,
@@ -43,20 +40,7 @@ export function NavUser({
   }
 }) {
   const { isMobile } = useSidebar()
-  const router = useRouter()
 
-  const handleLogout = async () => {
-    try {
-      await axios.post('/api/auth/logout')
-      toast.success('Logged out successfully')
-      router.push('/login')
-      router.refresh()
-    } catch (error) {
-      console.error('Logout error:', error)
-      toast.error('Failed to logout')
-    }
-  }
-  
   return (
     <SidebarMenu>
       <SidebarMenuItem>
@@ -118,11 +102,9 @@ export function NavUser({
               </DropdownMenuItem>
             </DropdownMenuGroup>
             <DropdownMenuSeparator />
-            <DropdownMenuItem
-              onClick={handleLogout}
-            >
+            <DropdownMenuItem>
               <LogOut />
-              Log out            
+              Log out
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>

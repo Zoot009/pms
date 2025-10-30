@@ -113,6 +113,8 @@ export async function POST(req: NextRequest) {
       deliveryDate,
       deliveryTime,
       notes,
+      customServiceIds, // Array of service IDs if customized
+      isCustomized, // Boolean flag
     } = body
 
     // Validate required fields
@@ -177,32 +179,61 @@ export async function POST(req: NextRequest) {
           deliveryTime: deliveryTime || null,
           notes: notes || null,
           status: 'PENDING',
+          isCustomized: isCustomized || false, // Track if services were customized
           createdById: currentUser.id,
         },
       })
 
-      // Create OrderService records for each service in the order type
-      if (orderType.services.length > 0) {
+      // Determine which services to use
+      let servicesToCreate: any[] = orderType.services
+
+      if (isCustomized && customServiceIds && Array.isArray(customServiceIds)) {
+        // Fetch the custom services
+        const customServices = await tx.service.findMany({
+          where: {
+            id: { in: customServiceIds },
+            isActive: true,
+          },
+        })
+
+        // Map to match the structure expected below
+        servicesToCreate = customServices.map(s => ({
+          serviceId: s.id,
+          service: s,
+        }))
+      }
+
+      // Create OrderService records for each service
+      if (servicesToCreate.length > 0) {
         await tx.orderService.createMany({
-          data: orderType.services.map((os) => ({
+          data: servicesToCreate.map((os: any) => ({
             orderId: newOrder.id,
-            serviceId: os.serviceId,
+            serviceId: os.serviceId || os.service.id,
           })),
         })
 
         // Separate regular tasks and asking services
-        const regularServices = orderType.services.filter(os => os.service.type === 'SERVICE_TASK')
-        const askingServices = orderType.services.filter(os => os.service.type === 'ASKING_SERVICE')
+        const regularServices = servicesToCreate.filter((os: any) => {
+          const service = os.service || os
+          return service.type === 'SERVICE_TASK'
+        })
+        const askingServices = servicesToCreate.filter((os: any) => {
+          const service = os.service || os
+          return service.type === 'ASKING_SERVICE'
+        })
 
         // Create regular tasks for SERVICE_TASK type
         if (regularServices.length > 0) {
-          const taskData = regularServices.map((os) => ({
-            orderId: newOrder.id,
-            serviceId: os.serviceId,
-            teamId: os.service.teamId,
-            title: `${os.service.name} - ${newOrder.orderNumber}`,
-            status: 'NOT_ASSIGNED' as const,
-          }))
+          const taskData = regularServices.map((os: any) => {
+            const service = os.service || os
+            return {
+              orderId: newOrder.id,
+              serviceId: service.id,
+              teamId: service.teamId,
+              title: `${service.name} - ${newOrder.orderNumber}`,
+              status: 'NOT_ASSIGNED' as const,
+            }
+          })
 
           await tx.task.createMany({
             data: taskData,
@@ -212,12 +243,13 @@ export async function POST(req: NextRequest) {
         // Create asking tasks for ASKING_SERVICE type
         if (askingServices.length > 0) {
           for (const os of askingServices) {
+            const service = (os as any).service || os
             await tx.askingTask.create({
               data: {
                 orderId: newOrder.id,
-                serviceId: os.serviceId,
-                teamId: os.service.teamId,
-                title: `${os.service.name} - ${newOrder.orderNumber}`,
+                serviceId: service.id,
+                teamId: service.teamId,
+                title: `${service.name} - ${newOrder.orderNumber}`,
                 description: `Asking service for order ${newOrder.orderNumber}`,
                 currentStage: 'ASKED',
                 priority: 'MEDIUM',
@@ -237,7 +269,8 @@ export async function POST(req: NextRequest) {
           newValue: {
             orderNumber: newOrder.orderNumber,
             orderType: orderType.name,
-            servicesCount: orderType.services.length,
+            servicesCount: servicesToCreate.length,
+            isCustomized: isCustomized || false,
           },
         },
       })

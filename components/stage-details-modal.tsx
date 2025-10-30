@@ -179,7 +179,7 @@ export function StageDetailsModal({ taskId, isOpen, onClose, onUpdate }: StageDe
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-7xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Stage Details - {task.service.name}</DialogTitle>
           <DialogDescription>

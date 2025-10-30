@@ -286,6 +286,7 @@ model Order {
   notes         String?     @db.Text
   folderLink    String?     @map("folder_link") @db.Text
   status        OrderStatus @default(PENDING)
+  isCustomized  Boolean     @default(false) @map("is_customized") // True if services were customized during creation
   createdById   String?     @map("created_by") @db.VarChar(255)
   createdAt     DateTime    @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt     DateTime    @updatedAt @map("updated_at") @db.Timestamptz(6)

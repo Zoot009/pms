@@ -13,8 +13,8 @@ interface PageHeaderProps {
 
 export function PageHeader({ customBreadcrumbs, showHomeIcon = false }: PageHeaderProps) {
   return (
-    <header className="flex justify-between px-4 border-b mb-4 h-16 shrink-0 items-center gap-2 transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-12">
-      <div className="flex items-center gap-2">
+    <header className="flex h-16 shrink-0 items-center gap-2 transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-12">
+      <div className="flex items-center gap-2 px-4">
         <SidebarTrigger className="-ml-1" />
         <Separator
           orientation="vertical"
@@ -25,7 +25,7 @@ export function PageHeader({ customBreadcrumbs, showHomeIcon = false }: PageHead
           showHomeIcon={showHomeIcon}
         />
       </div>
-      <div>
+      <div className="ml-auto px-4">
         <ModeToggle/>
       </div>
     </header>

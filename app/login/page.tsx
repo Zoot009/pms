@@ -49,7 +49,7 @@ export default function LoginPage() {
           router.push('/member/dashboard')
           break
         case 'ORDER_CREATOR':
-          router.push('/orders')
+          router.push('/order-creator/dashboard')
           break
         default:
           router.push('/dashboard')

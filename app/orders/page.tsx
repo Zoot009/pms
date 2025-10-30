@@ -48,6 +48,7 @@ interface Order {
   orderDate: string
   deliveryDate: string
   status: string
+  isCustomized: boolean
   orderType: {
     id: string
     name: string
@@ -65,7 +66,7 @@ export default function OrdersPage() {
   const [isLoading, setIsLoading] = useState(true)
   const [statusFilter, setStatusFilter] = useState('ALL')
   const [searchQuery, setSearchQuery] = useState('')
-  const [viewMode, setViewMode] = useState<'grouped' | 'list'>('grouped')
+  const [viewMode, setViewMode] = useState<'grouped' | 'list'>('list')
 
   useEffect(() => {
     fetchOrders()
@@ -152,7 +153,10 @@ export default function OrdersPage() {
                 <Package className="h-3 w-3" />
                 ORDER TYPE
               </div>
-              <div className="font-medium text-sm">{order.orderType.name}</div>
+              <div className="font-medium text-sm">
+                {order.orderType.name}
+                {order.isCustomized && <span className="text-primary ml-1">*</span>}
+              </div>
             </div>
             <div>
               <div className="text-xs text-muted-foreground mb-1 flex items-center gap-1">
@@ -252,7 +256,7 @@ export default function OrdersPage() {
       </Card>
     )
   }
-
+  
   if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -346,7 +350,7 @@ export default function OrdersPage() {
         </div>
       ) : (
         // List view
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-4">
           {orders.length === 0 ? (
             <Card className="col-span-full">
               <CardContent className="py-12 text-center text-muted-foreground">

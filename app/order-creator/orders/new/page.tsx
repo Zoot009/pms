@@ -11,7 +11,6 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Badge } from '@/components/ui/badge'
-import { Checkbox } from '@/components/ui/checkbox'
 import {
   Form,
   FormControl,
@@ -198,7 +197,7 @@ export default function NewOrderPage() {
 
       await axios.post('/api/admin/orders', payload)
       toast.success('Order created successfully')
-      router.push('/admin/orders')
+      router.push('/orders')
     } catch (error) {
       if (axios.isAxiosError(error)) {
         toast.error(error.response?.data?.error || 'Failed to create order')
@@ -214,7 +213,7 @@ export default function NewOrderPage() {
     <div className="p-8 space-y-6">
       <div className="flex items-center gap-4">
         <Button variant="ghost" size="icon" asChild>
-          <Link href="/admin/orders">
+          <Link href="/order-creator/dashboard">
             <ArrowLeft className="h-4 w-4" />
           </Link>
         </Button>
@@ -404,7 +403,7 @@ export default function NewOrderPage() {
                       {isLoading ? 'Creating...' : 'Create Order'}
                     </Button>
                     <Button type="button" variant="outline" asChild>
-                      <Link href="/admin/orders">Cancel</Link>
+                      <Link href="/order-creator/dashboard">Cancel</Link>
                     </Button>
                   </div>
                 </form>

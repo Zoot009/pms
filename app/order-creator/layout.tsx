@@ -1,11 +1,11 @@
 import { redirect } from 'next/navigation'
 import { getCurrentUser } from '@/lib/auth-utils'
-import { UserRole } from '@/lib/generated/prisma'
 import { AppSidebar } from '@/components/app-sidebar'
 import { PageHeader } from '@/components/page-header'
 import { SidebarProvider, SidebarInset } from '@/components/ui/sidebar'
+import prisma from '@/lib/prisma'
 
-const adminNavGroups = [
+const orderCreatorNavGroups = [
   {
     title: 'ORDERS',
     items: [
@@ -16,8 +16,13 @@ const adminNavGroups = [
       },
       {
         title: 'Create Order',
-        href: '/admin/orders/new',
+        href: '/order-creator/orders/new',
         icon: 'Plus',
+      },
+      {
+        title: 'Delivery',
+        href: '/order-creator/delivery',
+        icon: 'Truck',
       },
       {
         title: 'Delivered',
@@ -32,43 +37,28 @@ const adminNavGroups = [
     ],
   },
   {
-    title: 'TEAM MANAGEMENT',
+    title: 'MY WORK',
     items: [
       {
-        title: 'Teams',
-        href: '/admin/teams',
-        icon: 'UsersRound',
+        title: 'My Tasks',
+        href: '/order-creator/tasks',
+        icon: 'ListTodo',
       },
       {
-        title: 'Users',
-        href: '/admin/users',
-        icon: 'Users',
-      },
-    ],
-  },
-  {
-    title: 'CONFIGURATION',
-    items: [
-      {
-        title: 'Services',
-        href: '/admin/services',
-        icon: 'Briefcase',
+        title: 'Completed Tasks',
+        href: '/order-creator/completed',
+        icon: 'CheckCircle2',
       },
       {
-        title: 'Order Types',
-        href: '/admin/order-types',
-        icon: 'PackageSearch',
-      },
-      {
-        title: 'Settings',
-        href: '/admin/settings',
-        icon: 'Settings',
+        title: 'Schedule',
+        href: '/order-creator/schedule',
+        icon: 'Calendar',
       },
     ],
   },
 ]
 
-export default async function AdminLayout({
+export default async function OrderCreatorLayout({
   children,
 }: {
   children: React.ReactNode
@@ -79,8 +69,26 @@ export default async function AdminLayout({
     redirect('/login')
   }
 
-  if (user.role !== UserRole.ADMIN) {
+  if (user.role !== 'ORDER_CREATOR') {
     redirect('/unauthorized')
+  }
+
+  // Get user's team information if they have one
+  let teamInfo = null
+  const teamMember = await prisma.teamMember.findFirst({
+    where: { userId: user.id },
+    include: {
+      team: {
+        select: {
+          id: true,
+          name: true,
+        },
+      },
+    },
+  })
+
+  if (teamMember) {
+    teamInfo = teamMember.team
   }
 
   return (
@@ -92,8 +100,8 @@ export default async function AdminLayout({
           avatar: user.avatar,
           role: user.role,
         }}
-        dashboardHref="/admin/dashboard"
-        navGroups={adminNavGroups}
+        dashboardHref="/order-creator/dashboard"
+        navGroups={orderCreatorNavGroups}
       />
       <SidebarInset>
         <PageHeader />

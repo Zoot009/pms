@@ -178,7 +178,10 @@ async function OrdersTable({
                   </div>
                 </TableCell>
                 <TableCell>
-                  <span className="text-sm">{order.orderType.name}</span>
+                  <span className="text-sm">
+                    {order.orderType.name}
+                    {order.isCustomized && <span className="text-primary ml-1">*</span>}
+                  </span>
                 </TableCell>
                 <TableCell>
                   <span className="text-sm">
@@ -256,6 +259,13 @@ export default async function OrdersPage({
             Create Order
           </Link>
         </Button>
+      </div>
+
+      {/* Legend */}
+      <div className="bg-muted/50 p-3 rounded-lg border">
+        <p className="text-sm text-muted-foreground">
+          <span className="text-primary font-bold">*</span> indicates customized order type (services were modified during order creation)
+        </p>
       </div>
 
       <Card>
