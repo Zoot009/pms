@@ -138,12 +138,18 @@ export default function DeliveryPage() {
   const fetchOrders = async () => {
     try {
       setIsLoading(true)
-      // Only fetch IN_PROGRESS orders that are ready for delivery
-      const params = new URLSearchParams({
-        status: 'IN_PROGRESS',
-      })
-      const response = await axios.get(`/api/orders?${params}`)
-      setOrders(response.data.orders)
+      // Fetch both PENDING and IN_PROGRESS orders
+      const [pendingResponse, inProgressResponse] = await Promise.all([
+        axios.get('/api/orders?status=PENDING'),
+        axios.get('/api/orders?status=IN_PROGRESS')
+      ])
+      
+      const allOrders = [
+        ...pendingResponse.data.orders,
+        ...inProgressResponse.data.orders
+      ]
+      
+      setOrders(allOrders)
     } catch (error) {
       console.error('Error fetching orders:', error)
       toast.error('Failed to load orders')
@@ -175,9 +181,15 @@ export default function DeliveryPage() {
 
     // Ready to deliver filter
     if (readyFilter === 'ready') {
-      filtered = filtered.filter(order => canDeliver(order))
+      filtered = filtered.filter(order => {
+        const status = getDeliveryStatus(order)
+        return status.type === 'complete'
+      })
     } else if (readyFilter === 'not-ready') {
-      filtered = filtered.filter(order => !canDeliver(order))
+      filtered = filtered.filter(order => {
+        const status = getDeliveryStatus(order)
+        return status.type !== 'complete'
+      })
     }
 
     // Sorting
@@ -295,6 +307,24 @@ export default function DeliveryPage() {
       return
     }
 
+    // Check for incomplete tasks and show confirmation
+    const allTasks = [...selectedOrder.tasks, ...selectedOrder.askingTasks]
+    const incompleteTasks = allTasks.filter(task => !task.completedAt)
+    const incompleteMandatory = selectedOrder.askingTasks.filter(
+      task => task.isMandatory && !task.completedAt
+    )
+
+    // Show warning if there are incomplete tasks
+    if (incompleteTasks.length > 0) {
+      const confirmMessage = incompleteMandatory.length > 0
+        ? `Warning: This order has ${incompleteMandatory.length} incomplete mandatory task(s) and ${incompleteTasks.length} total incomplete task(s). Are you sure you want to deliver?`
+        : `Note: This order has ${incompleteTasks.length} incomplete task(s). Do you want to proceed with delivery?`
+      
+      if (!window.confirm(confirmMessage)) {
+        return
+      }
+    }
+
     try {
       setIsDelivering(true)
       await axios.post(`/api/orders/${selectedOrder.id}/deliver`)
@@ -324,11 +354,21 @@ export default function DeliveryPage() {
   }
 
   const canDeliver = (order: Order) => {
-    // Check if all mandatory tasks are completed
-    const mandatoryComplete = order.statistics.mandatoryRemaining === 0
-    // Check if all tasks are completed
+    // Any order can be delivered, but we show status badges
+    return true
+  }
+
+  const getDeliveryStatus = (order: Order) => {
     const allComplete = order.statistics.completedTasks === order.statistics.totalTasks
-    return mandatoryComplete && allComplete
+    const mandatoryComplete = order.statistics.mandatoryRemaining === 0
+    
+    if (allComplete) {
+      return { type: 'complete', label: 'All Tasks Complete', color: 'green' }
+    } else if (mandatoryComplete) {
+      return { type: 'partial', label: 'Ready (Some Incomplete)', color: 'blue' }
+    } else {
+      return { type: 'incomplete', label: 'Has Incomplete Mandatory', color: 'amber' }
+    }
   }
 
   const OrderCard = ({ order }: { order: Order }) => {
@@ -336,71 +376,78 @@ export default function DeliveryPage() {
       ? Math.round((order.statistics.completedTasks / order.statistics.totalTasks) * 100)
       : 0
 
-    const deliverable = canDeliver(order)
+    const deliveryStatus = getDeliveryStatus(order)
 
     return (
-      <Card className="hover:shadow-lg transition-shadow">
-        <CardHeader className="pb-4">
-          <div className="space-y-3">
+      <Card className="hover:shadow-lg transition-shadow flex flex-col">
+        <CardHeader className="pb-3">
+          <div className="space-y-2">
             {/* Customer Name and Order ID */}
             <div>
-              <CardTitle className="text-2xl font-bold mb-1">
+              <CardTitle className="text-xl font-bold mb-1">
                 {order.customerName}
               </CardTitle>
-              <CardDescription className="text-base">
+              <CardDescription className="text-sm">
                 <span className="font-mono">ID: #{order.orderNumber}</span>
               </CardDescription>
             </div>
 
             {/* Status Badges */}
             <div className="flex items-center gap-2 flex-wrap">
-              <Badge variant="default">In Progress</Badge>
+              <Badge variant={order.status === 'PENDING' ? 'secondary' : 'default'}>
+                {order.status === 'PENDING' ? 'Pending' : 'In Progress'}
+              </Badge>
               <Badge variant="secondary">{order.orderType.name}</Badge>
-              {deliverable ? (
+              {deliveryStatus.type === 'complete' ? (
                 <Badge variant="outline" className="bg-green-50 text-green-700 border-green-300 flex items-center gap-1">
                   <CheckCircle2 className="h-3 w-3" />
-                  Ready to Deliver
+                  {deliveryStatus.label}
+                </Badge>
+              ) : deliveryStatus.type === 'partial' ? (
+                <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-300 flex items-center gap-1">
+                  <Clock className="h-3 w-3" />
+                  {deliveryStatus.label}
                 </Badge>
               ) : (
-                <Badge variant="destructive" className="flex items-center gap-1">
+                <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-300 flex items-center gap-1">
                   <AlertCircle className="h-3 w-3" />
-                  Incomplete Tasks
+                  {deliveryStatus.label}
                 </Badge>
               )}
             </div>
           </div>
         </CardHeader>
-        <CardContent className="space-y-4">
+        <CardContent className="space-y-3 flex-1">
           {/* Order Details Grid */}
-          <div className="grid grid-cols-2 gap-4 pb-4 border-b">
+          <div className="grid grid-cols-2 gap-3 pb-3 border-b">
             <div>
-              <p className="text-sm text-muted-foreground">Customer Email</p>
-              <p className="font-medium truncate">{order.customerEmail}</p>
+              <p className="text-xs text-muted-foreground">Customer Email</p>
+              <p className="text-sm font-medium truncate">{order.customerEmail}</p>
             </div>
             <div>
-              <p className="text-sm text-muted-foreground">Phone</p>
-              <p className="font-medium">{order.customerPhone}</p>
+              <p className="text-xs text-muted-foreground">Phone</p>
+              <p className="text-sm font-medium">{order.customerPhone}</p>
             </div>
             <div>
-              <p className="text-sm text-muted-foreground">Delivery Date</p>
-              <p className="font-medium flex items-center gap-1">
-                <Clock className="h-4 w-4" />
+              <p className="text-xs text-muted-foreground">Delivery Date</p>
+              <p className="text-sm font-medium flex items-center gap-1">
+                <Clock className="h-3 w-3" />
                 {format(new Date(order.deliveryDate), 'MMM dd, yyyy')}
                 {order.deliveryTime && ` at ${order.deliveryTime}`}
               </p>
             </div>
             <div>
-              <p className="text-sm text-muted-foreground">Amount</p>
-              <p className="font-medium flex items-center gap-1">
-                <DollarSign className="h-4 w-4" />
+              <p className="text-xs text-muted-foreground">Amount</p>
+              <p className="text-sm font-medium flex items-center gap-1">
+                <DollarSign className="h-3 w-3" />
                 ${order.amount}
               </p>
             </div>
           </div>
 
           {/* Progress Section */}
-          <div className="space-y-2">
-            <div className="flex justify-between text-sm">
+          <div className="space-y-1.5">
+            <div className="flex justify-between text-xs">
               <span className="font-medium">Task Progress</span>
               <span className="text-muted-foreground">
                 {order.statistics.completedTasks} / {order.statistics.totalTasks} completed
@@ -418,25 +465,25 @@ export default function DeliveryPage() {
           </div>
 
           {/* Statistics Grid */}
-          <div className="grid grid-cols-3 gap-3 pt-2">
-            <div className="flex items-center gap-2 p-2 bg-blue-50 rounded-lg">
-              <ListChecks className="h-4 w-4 text-blue-600" />
-              <div>
-                <p className="text-xs text-muted-foreground">Total Tasks</p>
+          <div className="grid grid-cols-3 gap-2">
+            <div className="flex items-center gap-1.5 p-2 bg-blue-50 rounded-lg">
+              <ListChecks className="h-3.5 w-3.5 text-blue-600 shrink-0" />
+              <div className="min-w-0">
+                <p className="text-xs text-muted-foreground">Total</p>
                 <p className="text-sm font-bold">{order.statistics.totalTasks}</p>
               </div>
             </div>
-            <div className="flex items-center gap-2 p-2 bg-green-50 rounded-lg">
-              <CheckCircle2 className="h-4 w-4 text-green-600" />
-              <div>
-                <p className="text-xs text-muted-foreground">Completed</p>
+            <div className="flex items-center gap-1.5 p-2 bg-green-50 rounded-lg">
+              <CheckCircle2 className="h-3.5 w-3.5 text-green-600 shrink-0" />
+              <div className="min-w-0">
+                <p className="text-xs text-muted-foreground">Done</p>
                 <p className="text-sm font-bold">{order.statistics.completedTasks}</p>
               </div>
             </div>
-            <div className="flex items-center gap-2 p-2 bg-amber-50 rounded-lg">
-              <AlertCircle className="h-4 w-4 text-amber-600" />
-              <div>
-                <p className="text-xs text-muted-foreground">Mandatory</p>
+            <div className="flex items-center gap-1.5 p-2 bg-amber-50 rounded-lg">
+              <AlertCircle className="h-3.5 w-3.5 text-amber-600 shrink-0" />
+              <div className="min-w-0">
+                <p className="text-xs text-muted-foreground">Mand.</p>
                 <p className="text-sm font-bold">
                   {order.statistics.mandatoryCompleted}/{order.statistics.mandatoryTasks}
                 </p>
@@ -445,7 +492,7 @@ export default function DeliveryPage() {
           </div>
 
           {/* Action Buttons */}
-          <div className="flex gap-2 pt-2">
+          <div className="flex gap-2">
             {order.folderLink && (
               <Button
                 variant="outline"
@@ -453,19 +500,18 @@ export default function DeliveryPage() {
                 className="flex-1"
                 onClick={() => window.open(order.folderLink!, '_blank')}
               >
-                <ExternalLink className="h-4 w-4 mr-2" />
-                View Folder
+                <ExternalLink className="h-4 w-4 mr-1" />
+                Folder
               </Button>
             )}
             <Button
-              variant={deliverable ? 'default' : 'secondary'}
+              variant="default"
               size="sm"
               className="flex-1"
               onClick={() => handleOpenDeliveryModal(order)}
-              disabled={!deliverable}
             >
-              <Truck className="h-4 w-4 mr-2" />
-              Deliver Order
+              <Truck className="h-4 w-4 mr-1" />
+              Deliver
             </Button>
           </div>
         </CardContent>
@@ -545,8 +591,8 @@ export default function DeliveryPage() {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Orders</SelectItem>
-              <SelectItem value="ready">Ready to Deliver</SelectItem>
-              <SelectItem value="not-ready">Not Ready</SelectItem>
+              <SelectItem value="ready">All Tasks Complete</SelectItem>
+              <SelectItem value="not-ready">With Incomplete Tasks</SelectItem>
             </SelectContent>
           </Select>
 
@@ -576,17 +622,17 @@ export default function DeliveryPage() {
         </Card>
         <Card>
           <CardHeader className="pb-3">
-            <CardDescription>Ready to Deliver</CardDescription>
+            <CardDescription>All Tasks Complete</CardDescription>
             <CardTitle className="text-3xl text-green-600">
-              {filteredOrders.filter(canDeliver).length}
+              {filteredOrders.filter(o => getDeliveryStatus(o).type === 'complete').length}
             </CardTitle>
           </CardHeader>
         </Card>
         <Card>
           <CardHeader className="pb-3">
-            <CardDescription>Pending Tasks</CardDescription>
+            <CardDescription>With Incomplete Tasks</CardDescription>
             <CardTitle className="text-3xl text-amber-600">
-              {filteredOrders.filter(o => !canDeliver(o)).length}
+              {filteredOrders.filter(o => getDeliveryStatus(o).type !== 'complete').length}
             </CardTitle>
           </CardHeader>
         </Card>
@@ -617,7 +663,7 @@ export default function DeliveryPage() {
 
       {/* Delivery Verification Modal */}
       <Dialog open={isDeliveryModalOpen} onOpenChange={setIsDeliveryModalOpen}>
-        <DialogContent className="max-w-2xl max-h-[80vh]">
+        <DialogContent >
           <DialogHeader>
             <DialogTitle>Verify Order Delivery</DialogTitle>
             <DialogDescription>

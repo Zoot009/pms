@@ -38,47 +38,16 @@ export async function POST(
       return NextResponse.json({ error: 'Order not found' }, { status: 404 })
     }
 
-    // Verify order is in IN_PROGRESS status
-    if (order.status !== OrderStatus.IN_PROGRESS) {
+    // Verify order is in PENDING or IN_PROGRESS status
+    if (order.status !== OrderStatus.PENDING && order.status !== OrderStatus.IN_PROGRESS) {
       return NextResponse.json(
-        { error: 'Only orders in progress can be delivered' },
+        { error: 'Only pending or in-progress orders can be delivered' },
         { status: 400 }
       )
     }
 
-    // Verify all mandatory tasks are completed
-    const mandatoryAskingTasks = order.askingTasks.filter(task => task.isMandatory)
-    const incompleteMandatory = mandatoryAskingTasks.filter(task => !task.completedAt)
-    
-    if (incompleteMandatory.length > 0) {
-      return NextResponse.json(
-        {
-          error: 'Cannot deliver order: Not all mandatory tasks are completed',
-          incompleteTasks: incompleteMandatory.map(t => ({
-            id: t.id,
-            title: t.title,
-          })),
-        },
-        { status: 400 }
-      )
-    }
-
-    // Verify all tasks are completed
-    const allTasks = [...order.tasks, ...order.askingTasks]
-    const incompleteTasks = allTasks.filter(task => !task.completedAt)
-    
-    if (incompleteTasks.length > 0) {
-      return NextResponse.json(
-        {
-          error: 'Cannot deliver order: Not all tasks are completed',
-          incompleteTasks: incompleteTasks.map(t => ({
-            id: t.id,
-            title: t.title,
-          })),
-        },
-        { status: 400 }
-      )
-    }
+    // Note: We allow delivery even with incomplete tasks
+    // The system will track incomplete tasks in the delivered order history
 
     // Update order status to COMPLETED
     const updatedOrder = await prisma.order.update({
