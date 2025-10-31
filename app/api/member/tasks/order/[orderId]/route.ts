@@ -43,7 +43,7 @@ export async function GET(
         },
         askingTasks: {
           where: {
-            assignedTo: user.id,
+            completedAt: null,
           },
           include: {
             service: {
@@ -71,7 +71,7 @@ export async function GET(
     }
 
     // Check if user has any tasks in this order
-    if (order.tasks.length === 0 && order.askingTasks.length === 0) {
+    if (order.tasks.length === 0) {
       return NextResponse.json(
         { message: 'No tasks assigned to you in this order' },
         { status: 403 }

@@ -94,6 +94,7 @@ model User {
   createdServices  Service[]      @relation("ServiceCreatedBy")
   createdOrderTypes OrderType[]   @relation("OrderTypeCreatedBy")
   askingTasks      AskingTask[]   @relation("AskingTaskAssignedTo")
+  completedAskingTasks AskingTask[] @relation("AskingTaskCompletedBy")
   auditLogs        AuditLog[]
   
   // Asking Task Stage Relations
@@ -347,6 +348,7 @@ model Task {
   deadline    DateTime?    @db.Timestamptz(6)
   startedAt   DateTime?    @map("started_at") @db.Timestamptz(6)
   completedAt DateTime?    @map("completed_at") @db.Timestamptz(6)
+  isMandatory Boolean      @default(false) @map("is_mandatory")
   createdById String?      @map("created_by") @db.VarChar(255)
   createdAt   DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt   DateTime     @updatedAt @map("updated_at") @db.Timestamptz(6)
@@ -387,14 +389,16 @@ model AskingTask {
   createdAt             DateTime        @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt             DateTime        @updatedAt @map("updated_at") @db.Timestamptz(6)
   completedAt           DateTime?       @map("completed_at") @db.Timestamptz(6)
+  completedBy           String?         @map("completed_by") @db.VarChar(255)
   metadata              Json?
 
   // Relations
-  order        Order                @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  service      Service              @relation(fields: [serviceId], references: [id])
-  team         Team                 @relation(fields: [teamId], references: [id])
-  assignedUser User?                @relation("AskingTaskAssignedTo", fields: [assignedTo], references: [id])
-  stageHistory AskingTaskStage[]
+  order         Order                @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  service       Service              @relation(fields: [serviceId], references: [id])
+  team          Team                 @relation(fields: [teamId], references: [id])
+  assignedUser  User?                @relation("AskingTaskAssignedTo", fields: [assignedTo], references: [id])
+  completedUser User?                @relation("AskingTaskCompletedBy", fields: [completedBy], references: [id], onDelete: SetNull)
+  stageHistory  AskingTaskStage[]
 
   @@index([orderId, currentStage])
   @@index([serviceId])

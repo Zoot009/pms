@@ -119,13 +119,12 @@ export default async function TeamLeaderDashboard() {
 
   return (
     <>
-      <div className="flex flex-1 flex-col gap-4 p-4 pt-0">
-        <div>
-          <h1 className="text-3xl font-bold">Team Leader Dashboard</h1>
-          <p className="text-muted-foreground">
-            Manage your team and assign tasks efficiently
-          </p>
-        </div>
+      <div>
+        <h1 className="text-3xl font-bold">Team Leader Dashboard</h1>
+        <p className="text-muted-foreground">
+          Manage your team and assign tasks efficiently
+        </p>
+      </div>
 
         {/* Metrics Cards */}
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
@@ -288,7 +287,6 @@ export default async function TeamLeaderDashboard() {
             </CardContent>
           </Card>
         )}
-      </div>
     </>
   )
 }

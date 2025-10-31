@@ -79,6 +79,13 @@ export async function GET(request: NextRequest) {
             displayName: true,
           },
         },
+        completedUser: {
+          select: {
+            id: true,
+            email: true,
+            displayName: true,
+          },
+        },
         stageHistory: {
           orderBy: {
             createdAt: 'desc',

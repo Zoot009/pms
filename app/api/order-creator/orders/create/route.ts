@@ -82,6 +82,7 @@ export async function POST(request: NextRequest) {
             status: 'NOT_ASSIGNED',
             priority: 'MEDIUM',
             deadline: order.deliveryDate,
+            isMandatory: orderTypeService.service.isMandatory,
           },
         })
       } else if (orderTypeService.service.type === 'ASKING_SERVICE') {
@@ -95,6 +96,7 @@ export async function POST(request: NextRequest) {
             currentStage: 'ASKED',
             priority: 'MEDIUM',
             deadline: order.deliveryDate,
+            isMandatory: orderTypeService.service.isMandatory,
           },
         })
       }

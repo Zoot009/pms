@@ -35,6 +35,7 @@ export async function PATCH(
       where: { id },
       data: {
         completedAt: new Date(),
+        completedBy: user.id,
         // notes: notes || askingTask.notes, // Will work after Prisma generate
       },
       include: {
@@ -47,6 +48,13 @@ export async function PATCH(
         service: {
           select: {
             name: true,
+          },
+        },
+        completedUser: {
+          select: {
+            id: true,
+            displayName: true,
+            email: true,
           },
         },
       },

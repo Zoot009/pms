@@ -21,6 +21,9 @@ export async function GET(request: NextRequest) {
     // Status filter
     if (status !== 'ALL') {
       whereCondition.status = status
+    } else {
+      // By default, exclude delivered orders unless specifically filtered
+      whereCondition.status = { not: 'DELIVERED' }
     }
 
     // Search filter

@@ -210,7 +210,7 @@ export default function MemberDashboard(): JSX.Element {
   ]
 
   return (
-    <div className="flex flex-1 flex-col gap-4 p-4 pt-0">
+    <>
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold">My Dashboard</h1>
@@ -326,6 +326,6 @@ export default function MemberDashboard(): JSX.Element {
           </CardContent>
         </Card>
       )}
-    </div>
+    </>
   )
 }

@@ -196,9 +196,8 @@ export default function TaskDetailPage({ params }: { params: Promise<{ orderId: 
 
   const daysOverdue = getDaysOverdue(order.deliveryDate)
   
-  // Separate regular tasks and asking service tasks
+  // Only show regular service tasks (asking tasks are handled separately via order.askingTasks)
   const regularTasks = order.tasks.filter(task => task.service?.type === 'SERVICE_TASK')
-  const askingServiceTasks = order.tasks.filter(task => task.service?.type === 'ASKING_SERVICE')
 
   return (
     <div className="flex flex-1 flex-col gap-4 p-4 pt-0">
@@ -230,7 +229,7 @@ export default function TaskDetailPage({ params }: { params: Promise<{ orderId: 
         <CardHeader>
           <CardTitle>Order Information</CardTitle>
         </CardHeader>
-        <CardContent>
+        <CardContent className="space-y-4">
           <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
             <div>
               <div className="text-sm text-muted-foreground">Client Name</div>
@@ -287,6 +286,27 @@ export default function TaskDetailPage({ params }: { params: Promise<{ orderId: 
               </div>
             )}
           </div>
+
+          {/* Asking Tasks Badges */}
+          {order.askingTasks && order.askingTasks.length > 0 && (
+            <div className="space-y-2 pt-4 border-t">
+              <div className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                Pending Asking Tasks
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {order.askingTasks.map((askingTask) => (
+                  <Link key={askingTask.id} href={`/asking-tasks`}>
+                    <Badge
+                      variant="secondary"
+                      className="cursor-pointer transition-transform hover:scale-105 bg-blue-500 hover:bg-blue-600 text-white"
+                    >
+                      {askingTask.service.name}
+                    </Badge>
+                  </Link>
+                ))}
+              </div>
+            </div>
+          )}
         </CardContent>
       </Card>
 
@@ -431,118 +451,6 @@ export default function TaskDetailPage({ params }: { params: Promise<{ orderId: 
           )}
         </CardContent>
       </Card>
-
-      {/* Asking Service Tasks */}
-      {askingServiceTasks.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Asking Tasks</CardTitle>
-            <CardDescription>Client communication tasks for this order</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-3">
-              {askingServiceTasks.map((task) => (
-                <div
-                  key={task.id}
-                  className="flex items-center justify-between p-3 border rounded-lg"
-                >
-                  <div className="space-y-1 flex-1">
-                    <div className="flex items-center gap-2">
-                      <div className="font-medium">{task.service?.name || 'Custom Task'}</div>
-                      {getStatusBadge(task.status)}
-                      {getPriorityBadge(task.priority)}
-                    </div>
-                    {task.deadline && (
-                      <div className="text-sm text-muted-foreground">
-                        Deadline: {format(new Date(task.deadline), 'MMM d, yyyy, hh:mm a')}
-                      </div>
-                    )}
-                    {task.startedAt && (
-                      <div className="text-sm text-muted-foreground">
-                        Started: {format(new Date(task.startedAt), 'MMM d, yyyy, hh:mm a')}
-                      </div>
-                    )}
-                    {task.completedAt && (
-                      <div className="text-sm text-muted-foreground">
-                        Completed: {format(new Date(task.completedAt), 'MMM d, yyyy, hh:mm a')}
-                      </div>
-                    )}
-                  </div>
-                  <div className="flex gap-2">
-                    {task.status === 'ASSIGNED' && (
-                      <Button
-                        onClick={() => handleStartTask(task.id)}
-                        disabled={actionLoading === task.id}
-                        size="sm"
-                      >
-                        {actionLoading === task.id ? (
-                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                        ) : (
-                          <Play className="h-4 w-4 mr-2" />
-                        )}
-                        Start
-                      </Button>
-                    )}
-                    {task.status === 'IN_PROGRESS' && (
-                      <Button
-                        onClick={() => handleCompleteTask(task.id)}
-                        disabled={actionLoading === task.id}
-                        size="sm"
-                      >
-                        {actionLoading === task.id ? (
-                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                        ) : (
-                          <CheckCircle2 className="h-4 w-4 mr-2" />
-                        )}
-                        Complete
-                      </Button>
-                    )}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Asking Tasks from AskingTask model */}
-      {order.askingTasks && order.askingTasks.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Asking Tasks</CardTitle>
-            <CardDescription>Client communication tasks for this order</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-3">
-              {order.askingTasks.map((askingTask) => (
-                <div
-                  key={askingTask.id}
-                  className="flex items-center justify-between p-3 border rounded-lg"
-                >
-                  <div className="space-y-1 flex-1">
-                    <div className="flex items-center gap-2">
-                      <div className="font-medium">{askingTask.service?.name || 'Custom Task'}</div>
-                      <Badge>{askingTask.currentStage.replace('_', ' ')}</Badge>
-                    </div>
-                    {askingTask.deadline && (
-                      <div className="text-sm text-muted-foreground">
-                        Deadline: {format(new Date(askingTask.deadline), 'MMM d, yyyy, hh:mm a')}
-                      </div>
-                    )}
-                  </div>
-                  <Button 
-                    variant="outline" 
-                    size="sm"
-                    onClick={() => handleShowAskingTaskDetails(askingTask)}
-                  >
-                    Show Details
-                  </Button>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-      )}
 
       {/* Asking Task Modal */}
       {selectedAskingTask && (

@@ -1,12 +1,4 @@
-import { redirect } from 'next/navigation'
-import { getCurrentUser } from '@/lib/auth-utils'
-import { AppSidebar } from '@/components/app-sidebar'
-import { PageHeader } from '@/components/page-header'
-import { SidebarProvider, SidebarInset } from '@/components/ui/sidebar'
-import { UserRole } from '@/lib/generated/prisma'
-import prisma from '@/lib/prisma'
-
-const adminNavGroups = [
+export const adminNavGroups = [
   {
     title: 'ORDERS',
     items: [
@@ -69,7 +61,7 @@ const adminNavGroups = [
   },
 ]
 
-const memberNavGroups = [
+export const memberNavGroups = [
   {
     title: 'MY WORK',
     items: [
@@ -112,7 +104,7 @@ const memberNavGroups = [
   },
 ]
 
-const teamLeaderNavGroups = [
+export const teamLeaderNavGroups = [
   {
     title: 'MY WORK',
     items: [
@@ -180,7 +172,7 @@ const teamLeaderNavGroups = [
   },
 ]
 
-const orderCreatorNavGroups = [
+export const orderCreatorNavGroups = [
   {
     title: 'ORDERS',
     items: [
@@ -193,6 +185,11 @@ const orderCreatorNavGroups = [
         title: 'Create Order',
         href: '/order-creator/orders/new',
         icon: 'Plus',
+      },
+      {
+        title: 'Delivery',
+        href: '/order-creator/delivery',
+        icon: 'Truck',
       },
       {
         title: 'Delivered',
@@ -227,63 +224,3 @@ const orderCreatorNavGroups = [
     ],
   },
 ]
-
-export default async function AskingTasksLayout({
-  children,
-}: {
-  children: React.ReactNode
-}) {
-  const user = await getCurrentUser()
-
-  if (!user) {
-    redirect('/login')
-  }
-
-  // Determine navigation groups and dashboard href based on role
-  let navGroups = memberNavGroups
-  let dashboardHref = '/member/dashboard'
-
-  if (user.role === UserRole.ADMIN) {
-    navGroups = adminNavGroups
-    dashboardHref = '/admin/dashboard'
-  } else if (user.role === UserRole.ORDER_CREATOR) {
-    navGroups = orderCreatorNavGroups
-    dashboardHref = '/order-creator/dashboard'
-  } else if (user.role === UserRole.MEMBER) {
-    // Check if user is a team leader
-    const isTeamLeader = await prisma.team.findFirst({
-      where: {
-        leaderId: user.id,
-      },
-      select: {
-        id: true,
-      },
-    })
-
-    if (isTeamLeader) {
-      navGroups = teamLeaderNavGroups
-      dashboardHref = '/member/team/dashboard'
-    }
-  }
-
-  return (
-    <SidebarProvider>
-      <AppSidebar
-        user={{
-          displayName: user.displayName || user.email,
-          email: user.email,
-          avatar: user.avatar,
-          role: user.role,
-        }}
-        dashboardHref={dashboardHref}
-        navGroups={navGroups}
-      />
-      <SidebarInset>
-        <PageHeader />
-        <div className="flex flex-1 flex-col gap-4 p-4 pt-0">
-          {children}
-        </div>
-      </SidebarInset>
-    </SidebarProvider>
-  )
-}

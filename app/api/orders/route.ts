@@ -16,6 +16,7 @@ export async function GET(req: NextRequest) {
     const status = searchParams.get('status')
     const deliveryDate = searchParams.get('deliveryDate')
     const assignedToMe = searchParams.get('assignedToMe') === 'true'
+    const daysLeft = searchParams.get('daysLeft')
 
     const whereCondition: any = {}
 
@@ -40,6 +41,9 @@ export async function GET(req: NextRequest) {
 
     if (status && status !== 'ALL') {
       whereCondition.status = status
+    } else {
+      // By default, exclude delivered orders unless specifically filtered
+      whereCondition.status = { not: 'DELIVERED' }
     }
 
     if (deliveryDate) {
@@ -51,6 +55,47 @@ export async function GET(req: NextRequest) {
       whereCondition.deliveryDate = {
         gte: startOfDay,
         lte: endOfDay,
+      }
+    }
+
+    // Filter by days left until delivery
+    if (daysLeft) {
+      const today = new Date()
+      today.setHours(0, 0, 0, 0)
+
+      if (daysLeft === 'today') {
+        // Due today
+        const endOfToday = new Date(today)
+        endOfToday.setHours(23, 59, 59, 999)
+        
+        whereCondition.deliveryDate = {
+          gte: today,
+          lte: endOfToday,
+        }
+      } else if (daysLeft === 'new') {
+        // Orders created recently (e.g., within last 24 hours)
+        const last24Hours = new Date()
+        last24Hours.setHours(last24Hours.getHours() - 24)
+        
+        whereCondition.createdAt = {
+          gte: last24Hours,
+        }
+      } else {
+        // Specific days left (1-7)
+        const daysNumber = parseInt(daysLeft, 10)
+        if (!isNaN(daysNumber) && daysNumber > 0) {
+          const targetDate = new Date(today)
+          targetDate.setDate(targetDate.getDate() + daysNumber)
+          targetDate.setHours(0, 0, 0, 0)
+          
+          const endOfTargetDate = new Date(targetDate)
+          endOfTargetDate.setHours(23, 59, 59, 999)
+          
+          whereCondition.deliveryDate = {
+            gte: targetDate,
+            lte: endOfTargetDate,
+          }
+        }
       }
     }
 
@@ -128,10 +173,12 @@ export async function GET(req: NextRequest) {
           return new Date(t.deadline) < new Date()
         }).length
 
-        // Only asking tasks have isMandatory field
+        // Both tasks and asking tasks can have isMandatory field
+        const mandatoryTasks = tasks.filter((t: any) => t.isMandatory === true)
         const mandatoryAskingTasks = askingTasks.filter((t: any) => t.isMandatory === true)
-        const mandatoryCompleted = mandatoryAskingTasks.filter((t: any) => t.completedAt).length
-        const mandatoryRemaining = mandatoryAskingTasks.length - mandatoryCompleted
+        const allMandatoryTasks = [...mandatoryTasks, ...mandatoryAskingTasks]
+        const mandatoryCompleted = allMandatoryTasks.filter((t: any) => t.completedAt).length
+        const mandatoryRemaining = allMandatoryTasks.length - mandatoryCompleted
 
         const createdAt = new Date(order.createdAt)
         const now = new Date()
@@ -144,7 +191,7 @@ export async function GET(req: NextRequest) {
             completedTasks,
             unassignedTasks,
             overdueTasks,
-            mandatoryTasks: mandatoryAskingTasks.length,
+            mandatoryTasks: allMandatoryTasks.length,
             mandatoryCompleted,
             mandatoryRemaining,
             daysOld,

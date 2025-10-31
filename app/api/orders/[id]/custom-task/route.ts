@@ -12,14 +12,15 @@ export async function POST(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    // Check if user is admin or team leader
+    // Check if user is admin, order creator, or team leader
     const isAdmin = currentUser.role === 'ADMIN'
+    const isOrderCreator = currentUser.role === 'ORDER_CREATOR'
     const userTeams = await prisma.team.findMany({
       where: { leaderId: currentUser.id },
       select: { id: true },
     })
 
-    if (!isAdmin && userTeams.length === 0) {
+    if (!isAdmin && !isOrderCreator && userTeams.length === 0) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
 
@@ -35,7 +36,7 @@ export async function POST(
     }
 
     // Verify team leader has permission for this team
-    if (!isAdmin) {
+    if (!isAdmin && !isOrderCreator) {
       const hasPermission = userTeams.some(t => t.id === teamId)
       if (!hasPermission) {
         return NextResponse.json(
@@ -98,6 +99,7 @@ export async function POST(
           type: 'custom',
           assignedTo,
         },
+        description: `Custom task "${title}" created for order #${order.orderNumber}`,
       },
     })
 

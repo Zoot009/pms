@@ -12,13 +12,14 @@ export async function PATCH(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    // Check if user is admin or team leader
+    // Check if user is admin, order creator, or team leader
     const isAdmin = currentUser.role === 'ADMIN'
+    const isOrderCreator = currentUser.role === 'ORDER_CREATOR'
     const isTeamLeader = await prisma.team.findFirst({
       where: { leaderId: currentUser.id },
     })
 
-    if (!isAdmin && !isTeamLeader) {
+    if (!isAdmin && !isOrderCreator && !isTeamLeader) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
 
@@ -60,6 +61,7 @@ export async function PATCH(
         entityId: id,
         oldValue: { amount: order.amount },
         newValue: { amount: parseFloat(amount) },
+        description: `Order amount updated from $${order.amount} to $${parseFloat(amount)}`,
       },
     })
 

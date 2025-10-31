@@ -43,6 +43,9 @@ async function getOrdersList(
 
   if (statusFilter && statusFilter !== 'ALL') {
     whereCondition.status = statusFilter
+  } else {
+    // By default, exclude delivered orders unless specifically filtered
+    whereCondition.status = { not: 'DELIVERED' }
   }
 
   if (orderTypeFilter) {

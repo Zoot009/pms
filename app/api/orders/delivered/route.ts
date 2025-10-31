@@ -85,11 +85,13 @@ export async function GET() {
         const serviceTasks = tasks.length
         const askingTasksCount = askingTasks.length
 
-        // Mandatory asking tasks
+        // Both tasks and asking tasks can have isMandatory field
+        const mandatoryTasks = tasks.filter((t: any) => t.isMandatory === true)
         const mandatoryAskingTasks = askingTasks.filter((t: any) => t.isMandatory === true)
-        const mandatoryCompleted = mandatoryAskingTasks.filter((t: any) => t.completedAt).length
-        const mandatoryRemaining = mandatoryAskingTasks.length - mandatoryCompleted
-        const incompleteMandatoryTasks = mandatoryAskingTasks.filter((t: any) => !t.completedAt).length
+        const allMandatoryTasks = [...mandatoryTasks, ...mandatoryAskingTasks]
+        const mandatoryCompleted = allMandatoryTasks.filter((t: any) => t.completedAt).length
+        const mandatoryRemaining = allMandatoryTasks.length - mandatoryCompleted
+        const incompleteMandatoryTasks = allMandatoryTasks.filter((t: any) => !t.completedAt).length
 
         return {
           ...order,
@@ -98,7 +100,7 @@ export async function GET() {
             completedTasks,
             serviceTasks,
             askingTasks: askingTasksCount,
-            mandatoryTasks: mandatoryAskingTasks.length,
+            mandatoryTasks: allMandatoryTasks.length,
             mandatoryCompleted,
             mandatoryRemaining,
             incompleteMandatoryTasks,

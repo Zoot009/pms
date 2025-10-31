@@ -29,6 +29,7 @@ import {
 } from 'lucide-react'
 import { format } from 'date-fns'
 import { toast } from 'sonner'
+import { OrderActionButtons } from '@/components/order-action-buttons'
 
 interface OrderStats {
   totalTasks: number
@@ -37,6 +38,19 @@ interface OrderStats {
   overdueTasks: number
   mandatoryRemaining: number
   daysOld: number
+}
+
+interface AskingTask {
+  id: string
+  title: string
+  description?: string
+  completedAt?: string | null
+  isMandatory: boolean
+  service: {
+    id: string
+    name: string
+    type: string
+  }
 }
 
 interface Order {
@@ -54,6 +68,7 @@ interface Order {
     name: string
   }
   statistics: OrderStats
+  askingTasks?: AskingTask[]
 }
 
 interface GroupedOrders {
@@ -67,10 +82,39 @@ export default function OrdersPage() {
   const [statusFilter, setStatusFilter] = useState('ALL')
   const [searchQuery, setSearchQuery] = useState('')
   const [viewMode, setViewMode] = useState<'grouped' | 'list'>('list')
+  const [dueDateFilter, setDueDateFilter] = useState<string>('all')
+  const [currentUser, setCurrentUser] = useState<any>(null)
+  const [canEdit, setCanEdit] = useState(false)
 
   useEffect(() => {
     fetchOrders()
-  }, [statusFilter])
+    checkUserRole()
+  }, [statusFilter, dueDateFilter])
+
+  const checkUserRole = async () => {
+    try {
+      const userResponse = await axios.get('/api/auth/sync')
+      setCurrentUser(userResponse.data.user)
+      
+      const user = userResponse.data.user
+      
+      // Check if user can edit orders
+      const isAdmin = user?.role === 'ADMIN'
+      const isOrderCreator = user?.role === 'ORDER_CREATOR'
+      
+      // Check if user is a team leader
+      try {
+        const teamResponse = await axios.get('/api/team-leader/my-teams')
+        const isTeamLeader = teamResponse.data.teams && teamResponse.data.teams.length > 0
+        setCanEdit(isAdmin || isOrderCreator || isTeamLeader)
+      } catch {
+        setCanEdit(isAdmin || isOrderCreator)
+      }
+    } catch (error) {
+      console.error('Error checking user role:', error)
+      setCanEdit(false)
+    }
+  }
 
   const fetchOrders = async () => {
     try {
@@ -79,6 +123,12 @@ export default function OrdersPage() {
         status: statusFilter,
         search: searchQuery,
       })
+      
+      // Add due date filter if not "all"
+      if (dueDateFilter !== 'all') {
+        params.append('daysLeft', dueDateFilter)
+      }
+      
       const response = await axios.get(`/api/orders?${params}`)
       setOrders(response.data.orders)
       setGroupedOrders(response.data.groupedByDate)
@@ -229,6 +279,31 @@ export default function OrdersPage() {
             </div>
           )}
 
+          {/* Asking Tasks Badges */}
+          {order.askingTasks && order.askingTasks.length > 0 && (
+            <div className="space-y-2">
+              <div className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                Asking Tasks
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {order.askingTasks.map((task) => (
+                  <Link key={task.id} href={`/asking-tasks`}>
+                    <Badge
+                      variant={task.completedAt ? "default" : "secondary"}
+                      className={`cursor-pointer transition-transform hover:scale-105 ${
+                        task.completedAt
+                          ? "bg-green-500 hover:bg-green-600 text-white"
+                          : "bg-blue-500 hover:bg-blue-600 text-white"
+                      }`}
+                    >
+                      {task.service.name}
+                    </Badge>
+                  </Link>
+                ))}
+              </div>
+            </div>
+          )}
+
           {/* Progress Bar */}
           <div className="space-y-2">
             <div className="flex items-center justify-between text-sm">
@@ -245,6 +320,20 @@ export default function OrdersPage() {
               />
             </div>
           </div>
+
+          {/* Action Buttons (Only for Admin, Order Creator, Team Leader) */}
+          {canEdit && (
+            <div className="pt-2 border-t">
+              <OrderActionButtons
+                orderId={order.id}
+                currentDeliveryDate={order.deliveryDate}
+                currentAmount={order.amount}
+                currentNotes=""
+                onUpdate={fetchOrders}
+                variant="compact"
+              />
+            </div>
+          )}
 
           <Button asChild className="w-full">
             <Link href={`/orders/${order.id}`}>
@@ -279,38 +368,115 @@ export default function OrdersPage() {
       {/* Filters */}
       <Card>
         <CardContent className="pt-6">
-          <div className="flex flex-col md:flex-row gap-4">
-            <div className="flex-1">
-              <div className="flex gap-2">
-                <Input
-                  placeholder="Search by order number, customer name..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
-                />
-                <Button onClick={handleSearch}>
-                  <Search className="h-4 w-4 mr-2" />
-                  Search
-                </Button>
-              </div>
+          <div className="flex flex-col gap-4">
+            {/* Due Date Filter Pills */}
+            <div className="flex items-center gap-2 flex-wrap">
+              <Button
+                variant={dueDateFilter === 'all' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setDueDateFilter('all')}
+              >
+                All Orders
+              </Button>
+              <Button
+                variant={dueDateFilter === 'new' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setDueDateFilter('new')}
+              >
+                New Orders
+              </Button>
+              <Button
+                variant={dueDateFilter === 'today' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setDueDateFilter('today')}
+              >
+                Due Today
+              </Button>
+              <Button
+                variant={dueDateFilter === '1' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setDueDateFilter('1')}
+              >
+                1 Day Left
+              </Button>
+              <Button
+                variant={dueDateFilter === '2' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setDueDateFilter('2')}
+              >
+                2 Days Left
+              </Button>
+              <Button
+                variant={dueDateFilter === '3' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setDueDateFilter('3')}
+              >
+                3 Days Left
+              </Button>
+              <Button
+                variant={dueDateFilter === '4' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setDueDateFilter('4')}
+              >
+                4 Days Left
+              </Button>
+              <Button
+                variant={dueDateFilter === '5' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setDueDateFilter('5')}
+              >
+                5 Days Left
+              </Button>
+              <Button
+                variant={dueDateFilter === '6' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setDueDateFilter('6')}
+              >
+                6 Days Left
+              </Button>
+              <Button
+                variant={dueDateFilter === '7' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setDueDateFilter('7')}
+              >
+                7 Days Left
+              </Button>
             </div>
-            <Tabs value={statusFilter} onValueChange={setStatusFilter}>
-              <TabsList>
-                <TabsTrigger value="ALL">All</TabsTrigger>
-                <TabsTrigger value="PENDING">Pending</TabsTrigger>
-                <TabsTrigger value="IN_PROGRESS">In Progress</TabsTrigger>
-                <TabsTrigger value="COMPLETED">Completed</TabsTrigger>
-              </TabsList>
-            </Tabs>
-            <Select value={viewMode} onValueChange={(v: any) => setViewMode(v)}>
-              <SelectTrigger className="w-[150px]">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="grouped">Grouped by Date</SelectItem>
-                <SelectItem value="list">List View</SelectItem>
-              </SelectContent>
-            </Select>
+            
+            {/* Search and Other Filters */}
+            <div className="flex flex-col md:flex-row gap-4">
+              <div className="flex-1">
+                <div className="flex gap-2">
+                  <Input
+                    placeholder="Search by order number, customer name..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
+                  />
+                  <Button onClick={handleSearch}>
+                    <Search className="h-4 w-4 mr-2" />
+                    Search
+                  </Button>
+                </div>
+              </div>
+              <Tabs value={statusFilter} onValueChange={setStatusFilter}>
+                <TabsList>
+                  <TabsTrigger value="ALL">All</TabsTrigger>
+                  <TabsTrigger value="PENDING">Pending</TabsTrigger>
+                  <TabsTrigger value="IN_PROGRESS">In Progress</TabsTrigger>
+                  <TabsTrigger value="COMPLETED">Completed</TabsTrigger>
+                </TabsList>
+              </Tabs>
+              <Select value={viewMode} onValueChange={(v: any) => setViewMode(v)}>
+                <SelectTrigger className="w-[150px]">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="grouped">Grouped by Date</SelectItem>
+                  <SelectItem value="list">List View</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
           </div>
         </CardContent>
       </Card>

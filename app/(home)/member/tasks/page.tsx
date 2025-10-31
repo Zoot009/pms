@@ -30,6 +30,13 @@ interface Task {
   completedAt: string | null
 }
 
+interface AskingTask {
+  id: string
+  title: string
+  serviceName: string
+  completedAt: string | null
+}
+
 interface Order {
   orderId: string
   orderNumber: string
@@ -39,6 +46,7 @@ interface Order {
   folderLink: string | null
   orderTypeName: string
   tasks: Task[]
+  askingTasks?: AskingTask[]
 }
 
 export default function MyTasksPage() {
@@ -232,6 +240,27 @@ export default function MyTasksPage() {
                     </Button>
                   </div>
                 </div>
+                
+                {/* Asking Tasks Badges */}
+                {order.askingTasks && order.askingTasks.length > 0 && (
+                  <div className="mt-4 space-y-2">
+                    <div className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                      Pending Asking Tasks
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      {order.askingTasks.map((askingTask) => (
+                        <Link key={askingTask.id} href={`/asking-tasks`}>
+                          <Badge
+                            variant="secondary"
+                            className="cursor-pointer transition-transform hover:scale-105 bg-blue-500 hover:bg-blue-600 text-white"
+                          >
+                            {askingTask.serviceName}
+                          </Badge>
+                        </Link>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </CardHeader>
               <CardContent>
                 <Table>

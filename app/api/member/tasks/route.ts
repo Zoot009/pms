@@ -67,6 +67,18 @@ export async function GET(request: NextRequest) {
                 name: true,
               },
             },
+            askingTasks: {
+              where: {
+                completedAt: null,
+              },
+              include: {
+                service: {
+                  select: {
+                    name: true,
+                  },
+                },
+              },
+            },
           },
         },
         service: {
@@ -94,6 +106,12 @@ export async function GET(request: NextRequest) {
           amount: task.order.amount,
           folderLink: task.order.folderLink,
           orderTypeName: task.order.orderType.name,
+          askingTasks: task.order.askingTasks.map((at: any) => ({
+            id: at.id,
+            title: at.title,
+            serviceName: at.service?.name || 'Unknown',
+            completedAt: at.completedAt,
+          })),
           tasks: [],
         })
       }

@@ -202,7 +202,8 @@ export async function GET(
         serviceTasks,
         customTasks,
         askingTasks: askingTasksWithProgress,
-        mandatoryAskingTasks: askingTasksWithProgress.filter((at: any) => at.isMandatory),
+        mandatoryTasks: mandatoryTasks.filter((t: any) => !('completedAt' in t && t.completedAt)),
+        mandatoryAskingTasks: askingTasksWithProgress.filter((at: any) => at.isMandatory && !at.completedAt),
       },
     })
   } catch (error) {

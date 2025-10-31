@@ -73,6 +73,11 @@ interface AskingTask {
     email: string
     displayName: string | null
   } | null
+  completedUser: {
+    id: string
+    email: string
+    displayName: string | null
+  } | null
 }
 
 export default function AskingTasksPage() {
@@ -413,6 +418,11 @@ export default function AskingTasksPage() {
                               <div className="text-sm text-muted-foreground">
                                 Team: {task.team.name}
                               </div>
+                              {task.completedAt && task.completedUser && (
+                                <div className="text-xs text-muted-foreground">
+                                  Completed by {task.completedUser.displayName || task.completedUser.email} on {format(new Date(task.completedAt), 'MMM d, yyyy, hh:mm a')}
+                                </div>
+                              )}
                               <div className="flex items-center gap-2 mt-1">
                                 {getStageBadge(task.currentStage)}
                                 {task.deadline && (

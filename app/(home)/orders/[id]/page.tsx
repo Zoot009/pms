@@ -9,18 +9,8 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Separator } from '@/components/ui/separator'
 import { Alert, AlertDescription } from '@/components/ui/alert'
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
-import { Textarea } from '@/components/ui/textarea'
 import { StageDetailsModal } from '@/components/stage-details-modal'
+import { OrderActionButtons } from '@/components/order-action-buttons'
 import {
   Loader2,
   ArrowLeft,
@@ -57,28 +47,13 @@ export default function OrderDetailPage({ params }: OrderDetailPageProps) {
   const [isLoading, setIsLoading] = useState(true)
   const [currentUser, setCurrentUser] = useState<any>(null)
   const [isTeamLeader, setIsTeamLeader] = useState(false)
+  const [canEdit, setCanEdit] = useState(false)
 
   // UI State
   const [showServiceTasks, setShowServiceTasks] = useState(true)
   const [showAskingTasks, setShowAskingTasks] = useState(true)
-
-  // Modal States
-  const [showVerifyDialog, setShowVerifyDialog] = useState(false)
-  const [showExtendDeliveryDialog, setShowExtendDeliveryDialog] = useState(false)
-  const [showAmountDialog, setShowAmountDialog] = useState(false)
-  const [showCustomTaskDialog, setShowCustomTaskDialog] = useState(false)
-  const [showNotesDialog, setShowNotesDialog] = useState(false)
   const [showStageModal, setShowStageModal] = useState(false)
   const [selectedAskingTaskId, setSelectedAskingTaskId] = useState<string | null>(null)
-
-  // Form States
-  const [newDeliveryDate, setNewDeliveryDate] = useState('')
-  const [newAmount, setNewAmount] = useState('')
-  const [newNotes, setNewNotes] = useState('')
-  const [customTaskTitle, setCustomTaskTitle] = useState('')
-  const [customTaskDescription, setCustomTaskDescription] = useState('')
-  const [customTaskTeamId, setCustomTaskTeamId] = useState('')
-  const [isSubmitting, setIsSubmitting] = useState(false)
 
   useEffect(() => {
     fetchOrderDetails()
@@ -107,102 +82,27 @@ export default function OrderDetailPage({ params }: OrderDetailPageProps) {
 
   const checkUserRole = async () => {
     try {
-      const response = await axios.get('/api/team-leader/my-teams')
-      setIsTeamLeader(response.data.teams && response.data.teams.length > 0)
+      // Get current user info
+      const userResponse = await axios.get('/api/auth/sync')
+      setCurrentUser(userResponse.data.user)
+      
+      const user = userResponse.data.user
+      
+      // Check if user can edit orders
+      const isAdmin = user?.role === 'ADMIN'
+      const isOrderCreator = user?.role === 'ORDER_CREATOR'
+      
+      // Check if user is a team leader
+      const teamResponse = await axios.get('/api/team-leader/my-teams')
+      const isTeamLeaderRole = teamResponse.data.teams && teamResponse.data.teams.length > 0
+      setIsTeamLeader(isTeamLeaderRole)
+      
+      // User can edit if they are admin, order creator, or team leader
+      setCanEdit(isAdmin || isOrderCreator || isTeamLeaderRole)
     } catch (error) {
+      console.error('Error checking user role:', error)
       setIsTeamLeader(false)
-    }
-  }
-
-  const canEditOrder = isTeamLeader // Admins will also be team leaders in this context
-
-  const handleVerifyOrder = async () => {
-    try {
-      setIsSubmitting(true)
-      await axios.patch(`/api/orders/${orderId}/verify`)
-      toast.success('Order verified successfully')
-      setShowVerifyDialog(false)
-      fetchOrderDetails()
-    } catch (error) {
-      console.error('Error verifying order:', error)
-      toast.error('Failed to verify order')
-    } finally {
-      setIsSubmitting(false)
-    }
-  }
-
-  const handleExtendDelivery = async () => {
-    try {
-      setIsSubmitting(true)
-      await axios.patch(`/api/orders/${orderId}/extend-delivery`, {
-        deliveryDate: newDeliveryDate,
-      })
-      toast.success('Delivery date updated successfully')
-      setShowExtendDeliveryDialog(false)
-      setNewDeliveryDate('')
-      fetchOrderDetails()
-    } catch (error) {
-      console.error('Error updating delivery date:', error)
-      toast.error('Failed to update delivery date')
-    } finally {
-      setIsSubmitting(false)
-    }
-  }
-
-  const handleUpdateAmount = async () => {
-    try {
-      setIsSubmitting(true)
-      await axios.patch(`/api/orders/${orderId}/amount`, {
-        amount: parseFloat(newAmount),
-      })
-      toast.success('Amount updated successfully')
-      setShowAmountDialog(false)
-      setNewAmount('')
-      fetchOrderDetails()
-    } catch (error) {
-      console.error('Error updating amount:', error)
-      toast.error('Failed to update amount')
-    } finally {
-      setIsSubmitting(false)
-    }
-  }
-
-  const handleUpdateNotes = async () => {
-    try {
-      setIsSubmitting(true)
-      await axios.patch(`/api/orders/${orderId}/notes`, {
-        notes: newNotes,
-      })
-      toast.success('Notes updated successfully')
-      setShowNotesDialog(false)
-      fetchOrderDetails()
-    } catch (error) {
-      console.error('Error updating notes:', error)
-      toast.error('Failed to update notes')
-    } finally {
-      setIsSubmitting(false)
-    }
-  }
-
-  const handleCreateCustomTask = async () => {
-    try {
-      setIsSubmitting(true)
-      await axios.post(`/api/orders/${orderId}/custom-task`, {
-        title: customTaskTitle,
-        description: customTaskDescription,
-        teamId: customTaskTeamId,
-      })
-      toast.success('Custom task created successfully')
-      setShowCustomTaskDialog(false)
-      setCustomTaskTitle('')
-      setCustomTaskDescription('')
-      setCustomTaskTeamId('')
-      fetchOrderDetails()
-    } catch (error) {
-      console.error('Error creating custom task:', error)
-      toast.error('Failed to create custom task')
-    } finally {
-      setIsSubmitting(false)
+      setCanEdit(false)
     }
   }
 
@@ -284,59 +184,15 @@ export default function OrderDetailPage({ params }: OrderDetailPageProps) {
                 </Badge>
               )}
             </div>
-            {canEditOrder && (
-              <div className="flex flex-wrap gap-2">
-                <Button 
-                  variant="default"
-                  size="sm"
-                  onClick={() => setShowVerifyDialog(true)}
-                  disabled={order.status !== 'PENDING'}
-                >
-                  <CheckCircle2 className="h-4 w-4 mr-1" />
-                  Verify Order
-                </Button>
-                <Button 
-                  variant="outline"
-                  size="sm"
-                  onClick={() => {
-                    setNewDeliveryDate(format(new Date(order.deliveryDate), 'yyyy-MM-dd'))
-                    setShowExtendDeliveryDialog(true)
-                  }}
-                >
-                  <Calendar className="h-4 w-4 mr-1" />
-                  Extend Delivery
-                </Button>
-                <Button 
-                  variant="outline"
-                  size="sm"
-                  onClick={() => {
-                    setNewAmount(order.amount.toString())
-                    setShowAmountDialog(true)
-                  }}
-                >
-                  <DollarSign className="h-4 w-4 mr-1" />
-                  Add Amount
-                </Button>
-                <Button 
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setShowCustomTaskDialog(true)}
-                >
-                  <Plus className="h-4 w-4 mr-1" />
-                  Add Task
-                </Button>
-                <Button 
-                  variant="outline"
-                  size="sm"
-                  onClick={() => {
-                    setNewNotes(order.notes || '')
-                    setShowNotesDialog(true)
-                  }}
-                >
-                  <Edit className="h-4 w-4 mr-1" />
-                  Edit Notes
-                </Button>
-              </div>
+            {canEdit && (
+              <OrderActionButtons
+                orderId={orderId}
+                currentDeliveryDate={order.deliveryDate}
+                currentAmount={order.amount.toString()}
+                currentNotes={order.notes}
+                onUpdate={fetchOrderDetails}
+                variant="default"
+              />
             )}
           </div>
         </CardHeader>
@@ -444,37 +300,113 @@ export default function OrderDetailPage({ params }: OrderDetailPageProps) {
 
       {/* Mandatory Tasks Remaining */}
       {statistics.mandatoryRemaining > 0 && (
-        <Card className="border-pink-200 bg-pink-50 dark:bg-pink-950">
-          <CardHeader className="bg-pink-600 text-white">
-            <CardTitle className="flex items-center gap-2">
-              <Package className="h-5 w-5" />
-              Mandatory Tasks Remaining ({statistics.mandatoryRemaining})
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="pt-6 space-y-3">
-            {taskGroups.mandatoryAskingTasks.map((task: any) => (
-              <div
-                key={task.id}
-                className="flex items-center justify-between p-4 bg-white dark:bg-gray-900 rounded-lg"
-              >
-                <div className="flex-1">
-                  <div className="flex items-center gap-2 mb-1">
-                    <Badge variant="secondary">ASKING</Badge>
-                    <span className="font-medium">{task.service?.name || 'Custom Task'}</span>
-                  </div>
-                  <div className="text-sm text-muted-foreground">
-                    (Current phase: {task.currentStage.replace('_', ' ')})
-                  </div>
-                </div>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => handleShowAskingTaskDetails(task.id)}
-                >
-                  Show Details
-                </Button>
+        <Card className="border-zinc-200 dark:border-zinc-800">
+          <CardHeader className="border-b">
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle className="flex items-center gap-2 text-lg">
+                  <AlertCircle className="h-5 w-5 text-zinc-500" />
+                  Mandatory Tasks
+                </CardTitle>
+                <CardDescription className="mt-1">
+                  {statistics.mandatoryRemaining} task{statistics.mandatoryRemaining !== 1 ? 's' : ''} must be completed before delivery
+                </CardDescription>
               </div>
-            ))}
+              <Badge variant="secondary" className="text-sm">
+                {statistics.mandatoryRemaining} Remaining
+              </Badge>
+            </div>
+          </CardHeader>
+          <CardContent className="pt-6">
+            <div className="space-y-3">
+              {taskGroups.mandatoryTasks && taskGroups.mandatoryTasks.length > 0 ? (
+                taskGroups.mandatoryTasks.map((task: any) => (
+                  <div
+                    key={task.id}
+                    className="p-4 border border-zinc-200 dark:border-zinc-800 rounded-lg hover:border-zinc-300 dark:hover:border-zinc-700 transition-colors"
+                  >
+                    <div className="flex items-start justify-between gap-4">
+                      <div className="flex-1 space-y-3">
+                        <div className="flex items-center gap-2">
+                          {'service' in task && task.service ? (
+                            <Badge variant="outline" className="text-xs">
+                              Asking
+                            </Badge>
+                          ) : (
+                            <Badge variant="outline" className="text-xs">
+                              Service
+                            </Badge>
+                          )}
+                          <span className="font-medium text-sm">
+                            {task.service?.name || task.title || 'Custom Task'}
+                          </span>
+                        </div>
+                        
+                        <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
+                          {'currentStage' in task && task.currentStage && (
+                            <div className="flex items-center gap-1.5">
+                              <Clock className="h-3 w-3" />
+                              <span>{task.currentStage.replace(/_/g, ' ')}</span>
+                            </div>
+                          )}
+                          
+                          {task.assignedUser ? (
+                            <div className="flex items-center gap-1.5">
+                              <User className="h-3 w-3" />
+                              <span>{task.assignedUser.displayName || task.assignedUser.email}</span>
+                            </div>
+                          ) : (
+                            <div className="flex items-center gap-1.5 text-yellow-600 dark:text-yellow-500">
+                              <AlertCircle className="h-3 w-3" />
+                              <span>Unassigned</span>
+                            </div>
+                          )}
+                        </div>
+                        
+                        {'progress' in task && task.progress && (
+                          <div className="space-y-1.5">
+                            <div className="flex items-center justify-between text-xs">
+                              <span className="text-muted-foreground">
+                                {task.progress.completed} of {task.progress.total} stages
+                              </span>
+                              <span className="font-medium">{task.progress.percentage}%</span>
+                            </div>
+                            <div className="h-1.5 bg-zinc-100 dark:bg-zinc-800 rounded-full overflow-hidden">
+                              <div
+                                className="h-full bg-zinc-900 dark:bg-zinc-100 transition-all"
+                                style={{ width: `${task.progress.percentage}%` }}
+                              />
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                      
+                      <div>
+                        {'currentStage' in task ? (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleShowAskingTaskDetails(task.id)}
+                          >
+                            Details
+                          </Button>
+                        ) : (
+                          <Link href={`/member/tasks/${orderId}`}>
+                            <Button variant="outline" size="sm">
+                              <ExternalLink className="h-3.5 w-3.5" />
+                            </Button>
+                          </Link>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <div className="text-center py-8 text-sm text-muted-foreground">
+                  No mandatory tasks remaining
+                </div>
+              )}
+            </div>
           </CardContent>
         </Card>
       )}
@@ -608,174 +540,6 @@ export default function OrderDetailPage({ params }: OrderDetailPageProps) {
           </CardContent>
         )}
       </Card>
-
-      {/* Dialogs */}
-      <Dialog open={showVerifyDialog} onOpenChange={setShowVerifyDialog}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Verify Order</DialogTitle>
-            <DialogDescription>
-              Are you sure you want to verify this order? This will mark it as IN_PROGRESS.
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowVerifyDialog(false)}>
-              Cancel
-            </Button>
-            <Button onClick={handleVerifyOrder} disabled={isSubmitting}>
-              {isSubmitting && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-              Verify Order
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      <Dialog open={showExtendDeliveryDialog} onOpenChange={setShowExtendDeliveryDialog}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Extend Delivery Date</DialogTitle>
-            <DialogDescription>
-              Update the delivery date for this order
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div>
-              <Label htmlFor="deliveryDate">New Delivery Date</Label>
-              <Input
-                id="deliveryDate"
-                type="date"
-                value={newDeliveryDate}
-                onChange={(e) => setNewDeliveryDate(e.target.value)}
-              />
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowExtendDeliveryDialog(false)}>
-              Cancel
-            </Button>
-            <Button onClick={handleExtendDelivery} disabled={isSubmitting || !newDeliveryDate}>
-              {isSubmitting && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-              Update Date
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      <Dialog open={showAmountDialog} onOpenChange={setShowAmountDialog}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Update Order Amount</DialogTitle>
-            <DialogDescription>
-              Update the total amount for this order
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div>
-              <Label htmlFor="amount">Amount ($)</Label>
-              <Input
-                id="amount"
-                type="number"
-                step="0.01"
-                value={newAmount}
-                onChange={(e) => setNewAmount(e.target.value)}
-              />
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowAmountDialog(false)}>
-              Cancel
-            </Button>
-            <Button onClick={handleUpdateAmount} disabled={isSubmitting || !newAmount}>
-              {isSubmitting && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-              Update Amount
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      <Dialog open={showNotesDialog} onOpenChange={setShowNotesDialog}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Edit Notes</DialogTitle>
-            <DialogDescription>
-              Update notes for this order
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div>
-              <Label htmlFor="notes">Notes</Label>
-              <Textarea
-                id="notes"
-                rows={5}
-                value={newNotes}
-                onChange={(e) => setNewNotes(e.target.value)}
-                placeholder="Enter order notes..."
-              />
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowNotesDialog(false)}>
-              Cancel
-            </Button>
-            <Button onClick={handleUpdateNotes} disabled={isSubmitting}>
-              {isSubmitting && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-              Save Notes
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      <Dialog open={showCustomTaskDialog} onOpenChange={setShowCustomTaskDialog}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Create Custom Task</DialogTitle>
-            <DialogDescription>
-              Add a custom task to this order
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div>
-              <Label htmlFor="taskTitle">Task Title</Label>
-              <Input
-                id="taskTitle"
-                value={customTaskTitle}
-                onChange={(e) => setCustomTaskTitle(e.target.value)}
-                placeholder="Enter task title..."
-              />
-            </div>
-            <div>
-              <Label htmlFor="taskDescription">Description</Label>
-              <Textarea
-                id="taskDescription"
-                value={customTaskDescription}
-                onChange={(e) => setCustomTaskDescription(e.target.value)}
-                placeholder="Enter task description..."
-              />
-            </div>
-            <div>
-              <Label htmlFor="teamId">Team ID</Label>
-              <Input
-                id="teamId"
-                value={customTaskTeamId}
-                onChange={(e) => setCustomTaskTeamId(e.target.value)}
-                placeholder="Enter team ID..."
-              />
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowCustomTaskDialog(false)}>
-              Cancel
-            </Button>
-            <Button 
-              onClick={handleCreateCustomTask} 
-              disabled={isSubmitting || !customTaskTitle || !customTaskTeamId}
-            >
-              {isSubmitting && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-              Create Task
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
 
       {/* Stage Details Modal */}
       {selectedAskingTaskId && (
