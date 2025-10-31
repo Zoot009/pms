@@ -297,12 +297,14 @@ export default function DeliveryPage() {
   }
 
   const handleDeliver = async () => {
+    console.log("Clicked Deliver")
     if (!selectedOrder) return
 
     // Check if all tasks are verified
     const allVerified = Object.values(verifiedTasks).every(v => v === true)
     
     if (!allVerified) {
+      console.log("Not all tasks verified")
       toast.error('Please verify all tasks before delivering')
       return
     }
