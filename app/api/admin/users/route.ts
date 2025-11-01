@@ -3,6 +3,18 @@ import { createClient } from '@supabase/supabase-js'
 import prisma from '@/lib/prisma'
 import { getCurrentUser, createAuditLog } from '@/lib/auth-utils'
 import { UserRole, AuditAction } from '@/lib/generated/prisma'
+import crypto from 'crypto'
+
+// Generate a random temporary password
+function generateTempPassword(length = 12): string {
+  const charset = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*'
+  let password = ''
+  const randomBytes = crypto.randomBytes(length)
+  for (let i = 0; i < length; i++) {
+    password += charset[randomBytes[i] % charset.length]
+  }
+  return password
+}
 
 export async function POST(request: NextRequest) {
   try {
@@ -13,7 +25,10 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json()
-    const { email, password, firstName, lastName, phone, employeeId, role } = body
+    const { email, firstName, lastName, phone, employeeId, role } = body
+
+    // Generate a temporary password
+    const tempPassword = generateTempPassword()
 
     // Create user in Supabase Auth with service role
     const supabase = createClient(
@@ -29,7 +44,7 @@ export async function POST(request: NextRequest) {
     
     const { data: authData, error: authError } = await supabase.auth.admin.createUser({
       email,
-      password,
+      password: tempPassword,
       email_confirm: true,
       user_metadata: {
         first_name: firstName,
@@ -68,6 +83,19 @@ export async function POST(request: NextRequest) {
       },
     })
 
+    // Send password reset email via Supabase
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || request.headers.get('origin') || 'http://localhost:3000'
+    const redirectTo = `${baseUrl}/auth/update-password`
+
+    const { error: resetError } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo,
+    })
+
+    if (resetError) {
+      console.error('Error sending password reset email:', resetError)
+      // Don't fail the user creation, just log the error
+    }
+
     // Create audit log
     await createAuditLog({
       entityType: 'User',
@@ -79,7 +107,10 @@ export async function POST(request: NextRequest) {
       request,
     })
 
-    return NextResponse.json({ user })
+    return NextResponse.json({ 
+      user,
+      message: 'User created successfully. Password reset email sent.' 
+    })
   } catch (error) {
     console.error('Error creating user:', error)
     return NextResponse.json(

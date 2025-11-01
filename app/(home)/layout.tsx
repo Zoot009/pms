@@ -22,7 +22,7 @@ export default async function HomeLayout({
   if (!user) {
     redirect('/login')
   }
-
+  console.log('User Role:', user.role)
   // Determine navigation groups and dashboard href based on role
   let navGroups = memberNavGroups
   let dashboardHref = '/member/dashboard'
