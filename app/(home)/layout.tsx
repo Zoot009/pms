@@ -14,8 +14,10 @@ import {
 
 export default async function HomeLayout({
   children,
+  params,
 }: {
   children: React.ReactNode
+  params: Promise<{ [key: string]: string | string[] | undefined }>
 }) {
   const user = await getCurrentUser()
 
@@ -23,6 +25,11 @@ export default async function HomeLayout({
     redirect('/login')
   }
   console.log('User Role:', user.role)
+  
+  // Get the current path segment to determine which section user is trying to access
+  // Note: In the real app, we'd use headers() or another method to get the pathname
+  // For now, we'll do basic role checks in the layout
+  
   // Determine navigation groups and dashboard href based on role
   let navGroups = memberNavGroups
   let dashboardHref = '/member/dashboard'
