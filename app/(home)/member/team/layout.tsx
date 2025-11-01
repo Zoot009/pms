@@ -10,7 +10,7 @@ export default async function TeamLayout({
   const user = await getCurrentUser()
 
   if (!user) {
-    redirect('/login')
+    redirect('/auth/login')
   }
 
   // Check if user is a team leader

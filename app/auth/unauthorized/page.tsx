@@ -9,7 +9,7 @@ export default async function UnauthorizedPage() {
   const user = await getCurrentUser()
   
   // Determine the correct dashboard based on user role
-  let dashboardHref = '/login'
+  let dashboardHref = '/auth/login'
   if (user) {
     switch (user.role) {
       case UserRole.ADMIN:
@@ -22,7 +22,7 @@ export default async function UnauthorizedPage() {
         dashboardHref = '/member/dashboard'
         break
       default:
-        dashboardHref = '/login'
+        dashboardHref = '/auth/login'
     }
   }
 

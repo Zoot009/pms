@@ -22,7 +22,7 @@ export default async function HomeLayout({
   const user = await getCurrentUser()
 
   if (!user) {
-    redirect('/login')
+    redirect('/auth/login')
   }
   console.log('User Role:', user.role)
   

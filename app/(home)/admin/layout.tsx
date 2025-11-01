@@ -10,7 +10,7 @@ export default async function AdminLayout({
   const user = await getCurrentUser()
 
   if (!user) {
-    redirect('/login')
+    redirect('/auth/login')
   }
 
   // Only ADMIN role can access admin routes

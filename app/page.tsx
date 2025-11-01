@@ -6,7 +6,7 @@ export default async function Home() {
   const user = await getCurrentUser()
 
   if (!user) {
-    redirect('/login')
+    redirect('/auth/login')
   }
 
   // Redirect to appropriate dashboard based on role

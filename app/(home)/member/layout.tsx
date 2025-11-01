@@ -10,7 +10,7 @@ export default async function MemberLayout({
   const user = await getCurrentUser()
 
   if (!user) {
-    redirect('/login')
+    redirect('/auth/login')
   }
 
   // Only MEMBER role can access member routes

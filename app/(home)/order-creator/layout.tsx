@@ -10,7 +10,7 @@ export default async function OrderCreatorLayout({
   const user = await getCurrentUser()
 
   if (!user) {
-    redirect('/login')
+    redirect('/auth/login')
   }
 
   // Only ORDER_CREATOR or ADMIN role can access order creator routes

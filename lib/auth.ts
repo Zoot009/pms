@@ -37,7 +37,7 @@ export async function requireAuth() {
   const user = await getCurrentUser()
   
   if (!user) {
-    redirect('/login')
+    redirect('/auth/login')
   }
   
   return user
@@ -47,7 +47,7 @@ export async function requireRole(allowedRoles: UserRole[]) {
   const user = await requireAuth()
   
   if (!allowedRoles.includes(user.role)) {
-    redirect('/unauthorized')
+    redirect('/auth/unauthorized')
   }
   
   return user
@@ -61,7 +61,7 @@ export async function requireTeamLeader(teamId: string) {
   const user = await getCurrentUser()
   
   if (!user) {
-    redirect('/login')
+    redirect('/auth/login')
   }
   
   // Check if user is admin or leads the specific team

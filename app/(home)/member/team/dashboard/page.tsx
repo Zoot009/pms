@@ -111,7 +111,7 @@ export default async function TeamLeaderDashboard() {
   const user = await getCurrentUser()
   
   if (!user) {
-    redirect('/login')
+    redirect('/auth/login')
   }
 
   const data = await getTeamLeaderData(user.id)

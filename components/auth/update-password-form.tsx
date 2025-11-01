@@ -80,7 +80,7 @@ export function UpdatePasswordForm({
       if (error) throw error;
       
       // Redirect to login page after successful password update
-      router.push("/login?message=Password updated successfully. Please login with your new password.");
+      router.push("/auth/login?message=Password updated successfully. Please login with your new password.");
     } catch (error: unknown) {
       setError(error instanceof Error ? error.message : "An error occurred");
     } finally {

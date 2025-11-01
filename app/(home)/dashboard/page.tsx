@@ -7,7 +7,7 @@ export default async function DashboardPage() {
   const user = await getCurrentUser()
 
   if (!user) {
-    redirect('/login')
+    redirect('/auth/login')
   }
 
   // Redirect based on user role
@@ -33,6 +33,6 @@ export default async function DashboardPage() {
         redirect('/member/dashboard')
       }
     default:
-      redirect('/login')
+      redirect('/auth/login')
   }
 }
