@@ -2,17 +2,20 @@ import { NextRequest, NextResponse } from 'next/server'
 import prisma from '@/lib/prisma'
 import { getCurrentUser } from '@/lib/auth-utils'
 
-// GET - Fetch all orders for folder link management
+// GET - Fetch all orders for folder link management (for order creator)
 export async function GET(req: NextRequest) {
   try {
     const user = await getCurrentUser()
 
-    if (!user || user.role !== 'ADMIN') {
+    if (!user || user.role !== 'ORDER_CREATOR') {
       return NextResponse.json({ message: 'Unauthorized' }, { status: 401 })
     }
 
-    // Fetch all orders (with and without folder links)
+    // Fetch all orders created by this order creator (with and without folder links)
     const orders = await prisma.order.findMany({
+      where: {
+        createdById: user.id, // Only show orders created by this order creator
+      },
       include: {
         orderType: {
           select: {

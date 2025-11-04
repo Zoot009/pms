@@ -53,6 +53,11 @@ export const adminNavGroups = [
         icon: 'PackageSearch',
       },
       {
+        title: 'Data to Folder',
+        href: '/admin/data-to-folder',
+        icon: 'FolderUp',
+      },
+      {
         title: 'Settings',
         href: '/admin/settings',
         icon: 'Settings',
@@ -200,6 +205,36 @@ export const orderCreatorNavGroups = [
         title: 'Asking Tasks',
         href: '/asking-tasks',
         icon: 'ClipboardList',
+      },
+      {
+        title: 'Data to Folder',
+        href: '/order-creator/data-to-folder',
+        icon: 'FolderUp',
+      },
+    ],
+  },
+  {
+    title: 'TEAM MANAGEMENT',
+    items: [
+      {
+        title: 'Team Dashboard',
+        href: '/member/team/dashboard',
+        icon: 'LayoutDashboard',
+      },
+      {
+        title: 'Assign Tasks',
+        href: '/member/team/assign-tasks',
+        icon: 'ClipboardList',
+      },
+      {
+        title: 'Team Tasks',
+        href: '/member/team/team-tasks',
+        icon: 'Users',
+      },
+      {
+        title: 'Team Members',
+        href: '/member/team/members',
+        icon: 'UsersRound',
       },
     ],
   },

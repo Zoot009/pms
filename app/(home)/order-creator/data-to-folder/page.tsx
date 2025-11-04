@@ -27,7 +27,7 @@ interface Order {
   }
 }
 
-export default function DataToFolderPage() {
+export default function OrderCreatorDataToFolderPage() {
   const router = useRouter()
   const [orders, setOrders] = useState<Order[]>([])
   const [isLoading, setIsLoading] = useState(true)
@@ -42,7 +42,7 @@ export default function DataToFolderPage() {
   const fetchOrders = async () => {
     try {
       setIsLoading(true)
-      const response = await axios.get('/api/admin/orders/data-to-folder')
+      const response = await axios.get('/api/order-creator/orders/data-to-folder')
       const fetchedOrders = response.data.orders
       setOrders(fetchedOrders)
       
@@ -78,7 +78,7 @@ export default function DataToFolderPage() {
 
     try {
       setSavingOrderId(orderId)
-      await axios.patch(`/api/admin/orders/data-to-folder/${orderId}`, {
+      await axios.patch(`/api/order-creator/orders/data-to-folder/${orderId}`, {
         folderLink: folderLink.trim(),
       })
       
@@ -228,7 +228,7 @@ export default function DataToFolderPage() {
               </Button>
             )}
             <Button variant="outline" asChild>
-              <Link href={`/admin/orders/${order.id}`}>View Details</Link>
+              <Link href={`/orders/${order.id}`}>View Details</Link>
             </Button>
           </div>
         )}
@@ -252,7 +252,7 @@ export default function DataToFolderPage() {
       <div className="flex flex-1 flex-col gap-4 p-6 pt-0">
         <div>
           <h1 className="text-3xl font-bold">Data to Folder Management</h1>
-          <p className="text-muted-foreground">Manage folder links for orders</p>
+          <p className="text-muted-foreground">Manage folder links for your orders</p>
         </div>
 
         <Tabs defaultValue="without-links" className="w-full">
@@ -267,7 +267,7 @@ export default function DataToFolderPage() {
                 <CardContent className="flex flex-col items-center justify-center py-12">
                   <p className="text-muted-foreground text-center">No orders pending folder link assignment</p>
                   <Button asChild className="mt-4" variant="outline">
-                    <Link href="/admin/orders">View All Orders</Link>
+                    <Link href="/order-creator/orders">View Your Orders</Link>
                   </Button>
                 </CardContent>
               </Card>

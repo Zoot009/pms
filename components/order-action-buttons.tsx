@@ -77,7 +77,7 @@ export function OrderActionButtons({
   const fetchTeams = async () => {
     try {
       setIsLoadingTeams(true)
-      const response = await axios.get('/api/admin/teams')
+      const response = await axios.get('/api/teams')
       setTeams(response.data.teams)
     } catch (error) {
       console.error('Error fetching teams:', error)

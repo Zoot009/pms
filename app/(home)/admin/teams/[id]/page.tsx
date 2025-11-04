@@ -39,6 +39,7 @@ import {
 } from '@/components/ui/table'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
+import { Checkbox } from '@/components/ui/checkbox'
 import { ArrowLeft, Save, UserPlus, UserMinus, Users } from 'lucide-react'
 import { toast } from 'sonner'
 import { format } from 'date-fns'
@@ -103,7 +104,7 @@ export default function TeamDetailPage({ params }: { params: Promise<{ id: strin
   const [team, setTeam] = useState<Team | null>(null)
   const [leaders, setLeaders] = useState<Leader[]>([])
   const [availableUsers, setAvailableUsers] = useState<AvailableUser[]>([])
-  const [selectedUserId, setSelectedUserId] = useState<string>('')
+  const [selectedUserIds, setSelectedUserIds] = useState<string[]>([])
   const [isLoading, setIsLoading] = useState(false)
   const [isAddingMember, setIsAddingMember] = useState(false)
 
@@ -182,25 +183,28 @@ export default function TeamDetailPage({ params }: { params: Promise<{ id: strin
   }
 
   const handleAddMember = async () => {
-    if (!selectedUserId) {
-      toast.error('Please select a user')
+    if (!selectedUserIds || selectedUserIds.length === 0) {
+      toast.error('Please select at least one user')
       return
     }
 
     setIsAddingMember(true)
     try {
-      const response = await axios.post(`/api/admin/teams/${resolvedParams.id}/members`, { userId: selectedUserId })
+      const response = await axios.post(`/api/admin/teams/${resolvedParams.id}/members`, { 
+        userIds: selectedUserIds 
+      })
       setTeam(response.data.team)
-      setSelectedUserId('')
+      setSelectedUserIds([])
       
       // Refresh available users
       const usersResponse = await axios.get(`/api/admin/teams/${resolvedParams.id}/available-users`)
       setAvailableUsers(usersResponse.data.users)
       
-      toast.success('Member added successfully')
+      // Show detailed results
+      toast.success(response.data.message)
     } catch (error) {
       console.error('Error adding member:', error)
-      toast.error(axios.isAxiosError(error) ? error.response?.data?.message || 'Failed to add member' : 'Failed to add member')
+      toast.error(axios.isAxiosError(error) ? error.response?.data?.message || 'Failed to add members' : 'Failed to add members')
     } finally {
       setIsAddingMember(false)
     }
@@ -408,29 +412,79 @@ export default function TeamDetailPage({ params }: { params: Promise<{ id: strin
           <CardDescription>Add or remove members from this team</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="flex gap-2">
-            <Select value={selectedUserId} onValueChange={setSelectedUserId}>
-              <SelectTrigger className="flex-1">
-                <SelectValue placeholder="Select a user to add" />
-              </SelectTrigger>
-              <SelectContent>
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <Label>Select users to add ({selectedUserIds.length} selected)</Label>
+              {selectedUserIds.length > 0 && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setSelectedUserIds([])}
+                >
+                  Clear selection
+                </Button>
+              )}
+            </div>
+            
+            {availableUsers.length > 0 ? (
+              <div className="max-h-[300px] overflow-y-auto rounded-md border p-4 space-y-3">
                 {availableUsers.map((user) => (
-                  <SelectItem key={user.id} value={user.id}>
-                    <div className="flex items-center gap-2">
-                      <span>{user.displayName || user.email}</span>
-                      <span className="text-xs text-muted-foreground">({user.role})</span>
-                    </div>
-                  </SelectItem>
+                  <div key={user.id} className="flex items-center space-x-3">
+                    <Checkbox
+                      id={`user-${user.id}`}
+                      checked={selectedUserIds.includes(user.id)}
+                      onCheckedChange={(checked) => {
+                        if (checked) {
+                          setSelectedUserIds([...selectedUserIds, user.id])
+                        } else {
+                          setSelectedUserIds(selectedUserIds.filter(id => id !== user.id))
+                        }
+                      }}
+                    />
+                    <label
+                      htmlFor={`user-${user.id}`}
+                      className="flex-1 cursor-pointer text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                    >
+                      <div className="flex items-center gap-2">
+                        <span>{user.displayName || user.email}</span>
+                        <Badge variant="outline" className="text-xs">
+                          {user.role}
+                        </Badge>
+                      </div>
+                    </label>
+                  </div>
                 ))}
-              </SelectContent>
-            </Select>
-            <Button
-              onClick={handleAddMember}
-              disabled={isAddingMember || !selectedUserId}
-            >
-              <UserPlus className="mr-2 h-4 w-4" />
-              Add Member
-            </Button>
+              </div>
+            ) : (
+              <div className="text-center text-muted-foreground py-4">
+                All available users are already members of this team
+              </div>
+            )}
+
+            <div className="flex gap-2">
+              <Button
+                variant="secondary"
+                className="flex-1"
+                onClick={() => {
+                  if (selectedUserIds.length === availableUsers.length) {
+                    setSelectedUserIds([])
+                  } else {
+                    setSelectedUserIds(availableUsers.map(u => u.id))
+                  }
+                }}
+                disabled={availableUsers.length === 0}
+              >
+                {selectedUserIds.length === availableUsers.length ? 'Deselect All' : 'Select All'}
+              </Button>
+              <Button
+                className="flex-1"
+                onClick={handleAddMember}
+                disabled={isAddingMember || selectedUserIds.length === 0}
+              >
+                <UserPlus className="mr-2 h-4 w-4" />
+                {isAddingMember ? 'Adding...' : `Add ${selectedUserIds.length} Member${selectedUserIds.length !== 1 ? 's' : ''}`}
+              </Button>
+            </div>
           </div>
 
           <div className="rounded-md border">

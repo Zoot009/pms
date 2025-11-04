@@ -38,8 +38,19 @@ export default async function HomeLayout({
     navGroups = adminNavGroups
     dashboardHref = '/admin/dashboard'
   } else if (user.role === UserRole.ORDER_CREATOR) {
+    // Check if order creator is also a team leader
+    const isTeamLeader = await prisma.team.findFirst({
+      where: {
+        leaderId: user.id,
+      },
+      select: {
+        id: true,
+      },
+    })
+
+    // Order creators get their nav groups (which now include team management if they're leaders)
     navGroups = orderCreatorNavGroups
-    dashboardHref = '/order-creator/dashboard'
+    dashboardHref = isTeamLeader ? '/member/team/dashboard' : '/order-creator/dashboard'
   } else if (user.role === UserRole.MEMBER) {
     // Check if user is a team leader
     const isTeamLeader = await prisma.team.findFirst({

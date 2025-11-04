@@ -41,10 +41,8 @@ export async function GET(req: NextRequest) {
 
     if (status && status !== 'ALL') {
       whereCondition.status = status
-    } else {
-      // By default, exclude delivered orders unless specifically filtered
-      whereCondition.status = { not: 'DELIVERED' }
     }
+    // If status is 'ALL', show all orders (no status filter applied)
 
     if (deliveryDate) {
       const startOfDay = new Date(deliveryDate)

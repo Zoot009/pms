@@ -3,17 +3,11 @@ import { createClient } from '@supabase/supabase-js'
 import prisma from '@/lib/prisma'
 import { getCurrentUser, createAuditLog } from '@/lib/auth-utils'
 import { UserRole, AuditAction } from '@/lib/generated/prisma'
-import crypto from 'crypto'
 
-// Generate a random temporary password
-function generateTempPassword(length = 12): string {
-  const charset = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*'
-  let password = ''
-  const randomBytes = crypto.randomBytes(length)
-  for (let i = 0; i < length; i++) {
-    password += charset[randomBytes[i] % charset.length]
-  }
-  return password
+// Generate default password based on first name
+function generateDefaultPassword(firstName: string): string {
+  const lowerFirstName = firstName.toLowerCase().trim()
+  return `${lowerFirstName}@123`
 }
 
 export async function POST(request: NextRequest) {
@@ -25,10 +19,10 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json()
-    const { email, firstName, lastName, phone, employeeId, role } = body
+    const { email, firstName, lastName, employeeId, role } = body
 
-    // Generate a temporary password
-    const tempPassword = generateTempPassword()
+    // Generate default password based on first name
+    const defaultPassword = generateDefaultPassword(firstName)
 
     // Create user in Supabase Auth with service role
     const supabase = createClient(
@@ -41,15 +35,15 @@ export async function POST(request: NextRequest) {
         }
       }
     )
-    
+    console.log("Password:", defaultPassword)
     const { data: authData, error: authError } = await supabase.auth.admin.createUser({
       email,
-      password: tempPassword,
-      email_confirm: true,
+      password: defaultPassword,
+      email_confirm: true, // Auto-confirm the email
       user_metadata: {
         first_name: firstName,
-        last_name: lastName,
-        full_name: `${firstName} ${lastName}`,
+        last_name: lastName || '',
+        full_name: lastName ? `${firstName} ${lastName}` : firstName,
       },
     })
 
@@ -74,26 +68,36 @@ export async function POST(request: NextRequest) {
         id: authData.user.id,
         email,
         firstName,
-        lastName,
-        displayName: `${firstName} ${lastName}`,
-        phone: phone || null,
+        lastName: lastName || null,
+        displayName: lastName ? `${firstName} ${lastName}` : firstName,
         employeeId: employeeId || null,
         role: role as UserRole,
         isActive: true,
       },
     })
 
-    // Send password reset email via Supabase
-    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || request.headers.get('origin') || 'http://localhost:3000'
-    const redirectTo = `${baseUrl}/auth/update-password`
-
-    const { error: resetError } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo,
-    })
-
-    if (resetError) {
-      console.error('Error sending password reset email:', resetError)
-      // Don't fail the user creation, just log the error
+    // Send a welcome email notification using Supabase's invite functionality
+    // This will send an email to the user with their login information
+    try {
+      const { data: inviteData, error: inviteError } = await supabase.auth.admin.inviteUserByEmail(
+        email,
+        {
+          redirectTo: `${process.env.NEXT_PUBLIC_APP_URL || request.headers.get('origin') || 'http://localhost:3000'}/auth/login`,
+          data: {
+            first_name: firstName,
+            last_name: lastName || '',
+            default_password: defaultPassword,
+          }
+        }
+      )
+      
+      if (inviteError) {
+        console.error('Error sending welcome email:', inviteError)
+        // Don't fail - user is already created
+      }
+    } catch (inviteErr) {
+      console.error('Error sending welcome email:', inviteErr)
+      // Don't fail - user is already created
     }
 
     // Create audit log
@@ -103,13 +107,14 @@ export async function POST(request: NextRequest) {
       action: AuditAction.CREATE,
       performedBy: currentUser.id,
       newValue: user,
-      description: `Created user ${user.email}`,
+      description: `Created user ${user.email} with default password`,
       request,
     })
 
     return NextResponse.json({ 
       user,
-      message: 'User created successfully. Password reset email sent.' 
+      defaultPassword,
+      message: `User created successfully. Welcome email sent. Default password is: ${defaultPassword}` 
     })
   } catch (error) {
     console.error('Error creating user:', error)

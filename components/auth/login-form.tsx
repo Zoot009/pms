@@ -19,8 +19,11 @@ import { createClient } from "@/lib/supabase/client";
 
 export function LoginForm({
   className,
+  showSignupLink = false,
   ...props
-}: React.ComponentPropsWithoutRef<"div">) {
+}: React.ComponentPropsWithoutRef<"div"> & {
+  showSignupLink?: boolean;
+}) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -35,16 +38,46 @@ export function LoginForm({
     setError(null);
 
     try {
-      const { error } = await supabase.auth.signInWithPassword({
+      const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
       });      
       if (error) throw error;
-      // Update this route to redirect to an authenticated route. The user already has an active session.
-      router.push("/");
+      
+      if (!data.user) {
+        throw new Error("No user data returned");
+      }
+
+      // Fetch user details from database to get role
+      const response = await fetch(`/api/auth/me`);
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || "Failed to fetch user details");
+      }
+
+      const { user } = await response.json();
+      
+      if (!user || !user.role) {
+        throw new Error("User role not found");
+      }
+
+      // Redirect based on user role
+      let redirectPath = "/member/dashboard"; // Default for MEMBER
+      
+      if (user.role === "ADMIN") {
+        redirectPath = "/admin/users";
+      } else if (user.role === "ORDER_CREATOR") {
+        redirectPath = "/order-creator/orders";
+      } else if (user.role === "MEMBER") {
+        redirectPath = "/member/dashboard";
+      }
+      
+      console.log(`Redirecting user with role ${user.role} to ${redirectPath}`);
+      
+      // Use window.location for full page reload to ensure session is properly established
+      window.location.href = redirectPath;
     } catch (error: unknown) {
       setError(error instanceof Error ? error.message : "An error occurred");
-    } finally {
       setIsLoading(false);
     }
   };
@@ -109,6 +142,14 @@ export function LoginForm({
                 {isLoading ? "Logging in..." : "Login"}
               </Button>
             </div>
+            {showSignupLink && (
+              <div className="mt-4 text-center text-sm">
+                Don't have an account?{" "}
+                <Link href="/auth/sign-up" className="underline underline-offset-4">
+                  Sign up
+                </Link>
+              </div>
+            )}
           </form>
         </CardContent>
       </Card>

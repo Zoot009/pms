@@ -110,24 +110,36 @@ async function getTeamLeaderData(userId: string) {
 export default async function TeamLeaderDashboard() {
   const user = await getCurrentUser()
   
+  console.log('[Team Dashboard] Starting - user:', { id: user?.id, email: user?.email, role: user?.role })
+  
   if (!user) {
+    console.log('[Team Dashboard] No user found, redirecting to login')
     redirect('/auth/login')
   }
 
-  const data = await getTeamLeaderData(user.id)
-  const { metrics, allTasks } = data
+  console.log('[Team Dashboard] Fetching team leader data...')
+  try {
+    const data = await getTeamLeaderData(user.id)
+    console.log('[Team Dashboard] Data fetched successfully:', {
+      teamsCount: data.teams.length,
+      tasksCount: data.allTasks.length,
+      membersCount: data.teamMembers.length,
+      metrics: data.metrics,
+    })
+    const { metrics, allTasks } = data
 
-  return (
-    <>
-      <div>
-        <h1 className="text-3xl font-bold">Team Leader Dashboard</h1>
-        <p className="text-muted-foreground">
-          Manage your team and assign tasks efficiently
-        </p>
-      </div>
+    console.log('[Team Dashboard] Rendering dashboard...')
+    return (
+      <>
+        <div>
+          <h1 className="text-3xl font-bold">Team Leader Dashboard</h1>
+          <p className="text-muted-foreground">
+            Manage your team and assign tasks efficiently
+          </p>
+        </div>
 
-        {/* Metrics Cards */}
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+          {/* Metrics Cards */}
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Unassigned Tasks</CardTitle>
@@ -289,4 +301,13 @@ export default async function TeamLeaderDashboard() {
         )}
     </>
   )
+  } catch (error) {
+    console.error('[Team Dashboard] Error loading dashboard:', error)
+    console.error('[Team Dashboard] Error details:', {
+      message: error instanceof Error ? error.message : 'Unknown error',
+      stack: error instanceof Error ? error.stack : undefined,
+    })
+    // If there's an error, redirect to unauthorized
+    redirect('/unauthorized')
+  }
 }

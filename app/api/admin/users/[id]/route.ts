@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import prisma from '@/lib/prisma'
 import { getCurrentUser, createAuditLog } from '@/lib/auth-utils'
 import { UserRole, AuditAction } from '@/lib/generated/prisma'
+import { createAdminClient } from '@/lib/supabase/admin'
 
 export async function GET(
   request: NextRequest,
@@ -55,7 +56,7 @@ export async function PATCH(
 
     const resolvedParams = await params
     const body = await request.json()
-    const { firstName, lastName, phone, employeeId, role } = body
+    const { firstName, lastName, employeeId, role } = body
 
     const oldUser = await prisma.user.findUnique({
       where: { id: resolvedParams.id },
@@ -69,9 +70,8 @@ export async function PATCH(
       where: { id: resolvedParams.id },
       data: {
         firstName,
-        lastName,
-        displayName: `${firstName} ${lastName}`,
-        phone: phone || null,
+        lastName: lastName || null,
+        displayName: lastName ? `${firstName} ${lastName}` : firstName,
         employeeId: employeeId || null,
         role: role as UserRole,
       },
@@ -92,6 +92,81 @@ export async function PATCH(
     return NextResponse.json({ user })
   } catch (error) {
     console.error('Error updating user:', error)
+    return NextResponse.json(
+      { error: 'Internal server error' },
+      { status: 500 }
+    )
+  }
+}
+
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const currentUser = await getCurrentUser()
+
+    if (!currentUser || currentUser.role !== UserRole.ADMIN) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    const resolvedParams = await params
+    
+    // Get user data before deletion for audit log
+    const userToDelete = await prisma.user.findUnique({
+      where: { id: resolvedParams.id },
+    })
+
+    if (!userToDelete) {
+      return NextResponse.json({ error: 'User not found' }, { status: 404 })
+    }
+
+    // Prevent deletion of own account
+    if (userToDelete.id === currentUser.id) {
+      return NextResponse.json(
+        { error: 'Cannot delete your own account' },
+        { status: 400 }
+      )
+    }
+
+    // Delete the user from the database (cascade will handle related records)
+    await prisma.user.delete({
+      where: { id: resolvedParams.id },
+    })
+
+    // Delete the user from Supabase Auth
+    try {
+      const supabaseAdmin = createAdminClient()
+      const { error: authError } = await supabaseAdmin.auth.admin.deleteUser(
+        userToDelete.id
+      )
+      
+      if (authError) {
+        console.error('Error deleting user from Supabase Auth:', authError)
+        // Log the error but don't fail the request since DB deletion succeeded
+      }
+    } catch (authError) {
+      console.error('Error deleting user from Supabase Auth:', authError)
+      // Log the error but don't fail the request since DB deletion succeeded
+    }
+
+    // Create audit log
+    await createAuditLog({
+      entityType: 'User',
+      entityId: userToDelete.id,
+      action: AuditAction.DELETE,
+      performedBy: currentUser.id,
+      oldValue: userToDelete,
+      description: `Deleted user ${userToDelete.email}`,
+      request,
+    })
+
+    return NextResponse.json({ 
+      message: 'User deleted successfully',
+      deletedUser: userToDelete 
+    })
+  } catch (error) {
+    console.error('Error deleting user:', error)
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }

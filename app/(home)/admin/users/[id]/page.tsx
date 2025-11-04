@@ -40,14 +40,13 @@ import {
 } from '@/components/ui/alert-dialog'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Separator } from '@/components/ui/separator'
-import { ArrowLeft, Loader2, UserX, UserCheck } from 'lucide-react'
+import { ArrowLeft, Loader2, UserX, UserCheck, Trash2 } from 'lucide-react'
 import Link from 'next/link'
 import { format } from 'date-fns'
 
 const userFormSchema = z.object({
   firstName: z.string().min(1, 'First name is required'),
-  lastName: z.string().min(1, 'Last name is required'),
-  phone: z.string().optional(),
+  lastName: z.string().optional(),
   employeeId: z.string().optional(),
   role: z.enum(['ADMIN', 'MEMBER', 'ORDER_CREATOR']),
 })
@@ -60,7 +59,6 @@ interface User {
   displayName: string | null
   firstName: string | null
   lastName: string | null
-  phone: string | null
   avatar: string | null
   employeeId: string | null
   role: string
@@ -102,7 +100,6 @@ export default function UserDetailPage({ params }: { params: Promise<{ id: strin
       form.reset({
         firstName: data.user.firstName || '',
         lastName: data.user.lastName || '',
-        phone: data.user.phone || '',
         employeeId: data.user.employeeId || '',
         role: data.user.role,
       })
@@ -137,6 +134,18 @@ export default function UserDetailPage({ params }: { params: Promise<{ id: strin
       router.refresh()
     } catch (err) {
       setError(axios.isAxiosError(err) ? err.response?.data?.message || 'Failed to update status' : 'Failed to update status')
+    }
+  }
+
+  const handleDeleteUser = async () => {
+    if (!user) return
+
+    try {
+      await axios.delete(`/api/admin/users/${resolvedParams.id}`)
+      router.push('/admin/users')
+      router.refresh()
+    } catch (err) {
+      setError(axios.isAxiosError(err) ? err.response?.data?.message || err.response?.data?.error || 'Failed to delete user' : 'Failed to delete user')
     }
   }
 
@@ -213,6 +222,33 @@ export default function UserDetailPage({ params }: { params: Promise<{ id: strin
               <AlertDialogCancel>Cancel</AlertDialogCancel>
               <AlertDialogAction onClick={handleToggleStatus}>
                 Continue
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+
+        <AlertDialog>
+          <AlertDialogTrigger asChild>
+            <Button variant="outline" className="border-destructive text-destructive hover:bg-destructive hover:text-destructive-foreground">
+              <Trash2 className="mr-2 h-4 w-4" />
+              Delete User
+            </Button>
+          </AlertDialogTrigger>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Delete User</AlertDialogTitle>
+              <AlertDialogDescription>
+                Are you sure you want to delete this user? This action cannot be undone. 
+                All user data, team memberships, and assigned tasks will be permanently removed.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction 
+                onClick={handleDeleteUser}
+                className="bg-destructive  text-destructive-foreground hover:bg-destructive/90"
+              >
+                Delete
               </AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>
@@ -312,35 +348,19 @@ export default function UserDetailPage({ params }: { params: Promise<{ id: strin
                   />
                 </div>
 
-                <div className="grid gap-4 md:grid-cols-2">
-                  <FormField
-                    control={form.control}
-                    name="phone"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Phone (Optional)</FormLabel>
-                        <FormControl>
-                          <Input {...field} />
-                        </FormControl>
-                        <FormMessage />
+                <FormField
+                  control={form.control}
+                  name="employeeId"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Employee ID (Optional)</FormLabel>
+                      <FormControl>
+                        <Input {...field} />
+                      </FormControl>
+                      <FormMessage />
                       </FormItem>
                     )}
                   />
-
-                  <FormField
-                    control={form.control}
-                    name="employeeId"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Employee ID (Optional)</FormLabel>
-                        <FormControl>
-                          <Input {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </div>
 
                 <FormField
                   control={form.control}

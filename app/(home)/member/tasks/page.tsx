@@ -57,6 +57,8 @@ export default function MyTasksPage() {
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'completed'>('active')
   const [priorityFilter, setPriorityFilter] = useState('all')
   const [sortBy, setSortBy] = useState('default')
+  const [startingTaskId, setStartingTaskId] = useState<string | null>(null)
+  const [completingTaskId, setCompletingTaskId] = useState<string | null>(null)
 
   useEffect(() => {
     fetchTasks()
@@ -77,6 +79,34 @@ export default function MyTasksPage() {
       console.error('Error fetching tasks:', error)
     } finally {
       setIsLoading(false)
+    }
+  }
+
+  const handleStartTask = async (taskId: string) => {
+    try {
+      setStartingTaskId(taskId)
+      await axios.post(`/api/member/tasks/${taskId}/start`)
+      // Refresh the tasks after starting
+      await fetchTasks()
+    } catch (error) {
+      console.error('Error starting task:', error)
+    } finally {
+      setStartingTaskId(null)
+    }
+  }
+
+  const handleCompleteTask = async (taskId: string) => {
+    try {
+      setCompletingTaskId(taskId)
+      await axios.patch(`/api/member/tasks/${taskId}/complete`, {
+        completionNotes: ''
+      })
+      // Refresh the tasks after completing
+      await fetchTasks()
+    } catch (error) {
+      console.error('Error completing task:', error)
+    } finally {
+      setCompletingTaskId(null)
     }
   }
 
@@ -272,6 +302,7 @@ export default function MyTasksPage() {
                       <TableHead>Priority</TableHead>
                       <TableHead>Deadline</TableHead>
                       <TableHead>Warnings</TableHead>
+                      <TableHead>Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -288,6 +319,41 @@ export default function MyTasksPage() {
                           }
                         </TableCell>
                         <TableCell>{getDeadlineWarning(task)}</TableCell>
+                        <TableCell>
+                          {task.status === 'ASSIGNED' && (
+                            <Button
+                              size="sm"
+                              onClick={() => handleStartTask(task.id)}
+                              disabled={startingTaskId === task.id}
+                            >
+                              {startingTaskId === task.id ? (
+                                <>
+                                  <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                                  Starting...
+                                </>
+                              ) : (
+                                'Start Work'
+                              )}
+                            </Button>
+                          )}
+                          {task.status === 'IN_PROGRESS' && (
+                            <Button
+                              size="sm"
+                              variant="default"
+                              onClick={() => handleCompleteTask(task.id)}
+                              disabled={completingTaskId === task.id}
+                            >
+                              {completingTaskId === task.id ? (
+                                <>
+                                  <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                                  Completing...
+                                </>
+                              ) : (
+                                'Complete Task'
+                              )}
+                            </Button>
+                          )}
+                        </TableCell>
                       </TableRow>
                     ))}
                   </TableBody>

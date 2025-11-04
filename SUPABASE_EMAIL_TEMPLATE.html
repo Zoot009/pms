@@ -52,11 +52,11 @@
           <tr>
             <td style="padding: 40px;">
               <h2 style="margin: 0 0 16px; color: #1a202c; font-size: 24px; font-weight: 600;">
-                Set Your Password
+                Welcome to PMS!
               </h2>
               
               <p style="margin: 0 0 24px; color: #4a5568; font-size: 16px; line-height: 1.6;">
-                Your account has been created in our Project Management System. To get started, you need to set your password.
+                Your account has been created in our Project Management System. You can now log in and start collaborating with your team.
               </p>
               
               <!-- Info Box -->
@@ -66,15 +66,24 @@
                     <p style="margin: 0 0 8px; color: #2d3748; font-size: 14px; font-weight: 600;">
                       📧 Your Email Address
                     </p>
-                    <p style="margin: 0; color: #4a5568; font-size: 16px; font-family: 'Courier New', monospace;">
+                    <p style="margin: 0 0 16px; color: #4a5568; font-size: 16px; font-family: 'Courier New', monospace;">
                       {{ .Email }}
+                    </p>
+                    <p style="margin: 0 0 8px; color: #2d3748; font-size: 14px; font-weight: 600;">
+                      🔑 Your Default Password
+                    </p>
+                    <p style="margin: 0; color: #4a5568; font-size: 16px; font-family: 'Courier New', monospace;">
+                      [FirstName]@123
+                    </p>
+                    <p style="margin: 12px 0 0; color: #718096; font-size: 13px; font-style: italic;">
+                      (Your first name followed by @123)
                     </p>
                   </td>
                 </tr>
               </table>
               
               <p style="margin: 24px 0 20px; color: #4a5568; font-size: 16px; line-height: 1.6;">
-                Click the button below to set your password and access your account:
+                Click the button below to confirm your email and access your account:
               </p>
               
               <!-- CTA Button -->
@@ -87,7 +96,7 @@
                           <a href="{{ .ConfirmationURL }}" 
                              target="_blank"
                              style="display: inline-block; padding: 16px 40px; color: #ffffff; text-decoration: none; font-weight: 600; font-size: 16px; letter-spacing: 0.3px;">
-                            Set My Password
+                            Confirm Email & Login
                           </a>
                         </td>
                       </tr>
@@ -97,14 +106,14 @@
               </table>
               
               <!-- Security Notice -->
-              <table role="presentation" style="width: 100%; border-collapse: collapse; margin: 32px 0; background-color: #fffaf0; border-left: 4px solid #f59e0b; border-radius: 6px;">
+              <table role="presentation" style="width: 100%; border-collapse: collapse; margin: 32px 0; background-color: #fff7ed; border-left: 4px solid #f59e0b; border-radius: 6px;">
                 <tr>
                   <td style="padding: 16px 20px;">
                     <p style="margin: 0 0 8px; color: #78350f; font-size: 14px; font-weight: 600;">
-                      ⚠️ Security Notice
+                      🔒 Important: Change Your Password
                     </p>
                     <p style="margin: 0; color: #92400e; font-size: 14px; line-height: 1.5;">
-                      This link will expire in 24 hours for security reasons. If you didn't request this or believe this is a mistake, please contact your system administrator immediately.
+                      For security reasons, we recommend changing your password after your first login. You can do this from your profile settings.
                     </p>
                   </td>
                 </tr>

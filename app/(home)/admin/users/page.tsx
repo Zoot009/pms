@@ -66,8 +66,7 @@ import { toast } from 'sonner'
 const userFormSchema = z.object({
   email: z.string().email('Invalid email address'),
   firstName: z.string().min(1, 'First name is required'),
-  lastName: z.string().min(1, 'Last name is required'),
-  phone: z.string().optional(),
+  lastName: z.string().optional(),
   employeeId: z.string().optional(),
   role: z.enum(['ADMIN', 'MEMBER', 'ORDER_CREATOR']),
 })
@@ -123,7 +122,6 @@ export default function UsersPage() {
       email: '',
       firstName: '',
       lastName: '',
-      phone: '',
       employeeId: '',
       role: 'MEMBER',
     },
@@ -352,7 +350,7 @@ export default function UsersPage() {
                   name="lastName"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Last Name</FormLabel>
+                      <FormLabel>Last Name (Optional)</FormLabel>
                       <FormControl>
                         <Input placeholder="Doe" {...field} />
                       </FormControl>
@@ -377,35 +375,19 @@ export default function UsersPage() {
                 )}
               />
 
-              <div className="grid gap-4 md:grid-cols-2">
-                <FormField
-                  control={form.control}
-                  name="phone"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Phone (Optional)</FormLabel>
-                      <FormControl>
-                        <Input placeholder="+1 234 567 8900" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={form.control}
-                  name="employeeId"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Employee ID (Optional)</FormLabel>
-                      <FormControl>
-                        <Input placeholder="EMP001" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
+              <FormField
+                control={form.control}
+                name="employeeId"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Employee ID (Optional)</FormLabel>
+                    <FormControl>
+                      <Input placeholder="EMP001" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
 
               <FormField
                 control={form.control}
