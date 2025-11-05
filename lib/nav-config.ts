@@ -80,11 +80,6 @@ export const memberNavGroups = [
         href: '/member/completed',
         icon: 'CheckCircle2',
       },
-      {
-        title: 'Schedule',
-        href: '/member/schedule',
-        icon: 'Calendar',
-      },
     ],
   },
   {
@@ -209,7 +204,7 @@ export const orderCreatorNavGroups = [
       {
         title: 'Data to Folder',
         href: '/order-creator/data-to-folder',
-        icon: 'FolderUp',
+        icon: 'ClipboardList',
       },
     ],
   },
@@ -251,10 +246,20 @@ export const orderCreatorNavGroups = [
         href: '/order-creator/completed',
         icon: 'CheckCircle2',
       },
+    ],
+  },
+  {
+    title: 'CONFIGURATION',
+    items: [
       {
-        title: 'Schedule',
-        href: '/order-creator/schedule',
-        icon: 'Calendar',
+        title: 'Services',
+        href: '/order-creator/services',
+        icon: 'Briefcase',
+      },
+      {
+        title: 'Order Types',
+        href: '/order-creator/order-types',
+        icon: 'PackageSearch',
       },
     ],
   },

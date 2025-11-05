@@ -16,7 +16,7 @@ export async function GET(
   try {
     const user = await getCurrentUser()
 
-    if (!user || user.role !== 'ADMIN') {
+    if (!user || (user.role !== 'ADMIN' && user.role !== 'ORDER_CREATOR')) {
       return NextResponse.json({ message: 'Unauthorized' }, { status: 401 })
     }
 
@@ -67,7 +67,7 @@ export async function PATCH(
   try {
     const user = await getCurrentUser()
 
-    if (!user || user.role !== 'ADMIN') {
+    if (!user || (user.role !== 'ADMIN' && user.role !== 'ORDER_CREATOR')) {
       return NextResponse.json({ message: 'Unauthorized' }, { status: 401 })
     }
 
@@ -208,7 +208,7 @@ export async function DELETE(
   try {
     const user = await getCurrentUser()
 
-    if (!user || user.role !== 'ADMIN') {
+    if (!user || (user.role !== 'ADMIN' && user.role !== 'ORDER_CREATOR')) {
       return NextResponse.json({ message: 'Unauthorized' }, { status: 401 })
     }
 
