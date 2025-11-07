@@ -55,13 +55,16 @@ export async function GET(
       return NextResponse.json({ message: 'Order type not found' }, { status: 404 })
     }
 
-    // Flatten the services structure for easier consumption
-    const flattenedOrderType = {
+    // Return order type with both formats for compatibility
+    const responseData = {
       ...orderType,
-      services: orderType.services.map((s) => s.service),
+      services: orderType.services.map((ots) => ({
+        serviceId: ots.serviceId,
+        service: ots.service,
+      })),
     }
 
-    return NextResponse.json(flattenedOrderType)
+    return NextResponse.json(responseData)
   } catch (error) {
     console.error('Error fetching order type:', error)
     return NextResponse.json(
