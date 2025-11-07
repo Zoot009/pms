@@ -25,17 +25,16 @@ export async function PATCH(
       )
     }
 
-    // Check if order exists and was created by this order creator
-    const existingOrder = await prisma.order.findFirst({
+    // Check if order exists (ORDER_CREATOR can update any order)
+    const existingOrder = await prisma.order.findUnique({
       where: {
         id,
-        createdById: user.id, // Ensure they can only update their own orders
       },
     })
 
     if (!existingOrder) {
       return NextResponse.json(
-        { message: 'Order not found or you do not have permission to update it' },
+        { message: 'Order not found' },
         { status: 404 }
       )
     }

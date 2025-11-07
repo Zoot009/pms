@@ -11,6 +11,7 @@ import { Separator } from '@/components/ui/separator'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { StageDetailsModal } from '@/components/stage-details-modal'
 import { OrderActionButtons } from '@/components/order-action-buttons'
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import {
   Loader2,
   ArrowLeft,
@@ -28,8 +29,11 @@ import {
   TrendingUp,
   ChevronDown,
   ChevronUp,
+  XCircle,
+  PlayCircle,
+  PauseCircle,
 } from 'lucide-react'
-import { format } from 'date-fns'
+import { format, differenceInDays } from 'date-fns'
 import { toast } from 'sonner'
 
 interface OrderDetailPageProps {
@@ -122,14 +126,39 @@ export default function OrderDetailPage({ params }: OrderDetailPageProps) {
   }
 
   const getPriorityBadge = (priority: string) => {
-    const variants: Record<string, { variant: 'default' | 'secondary' | 'outline'; label: string }> = {
+    const variants: Record<string, { variant: 'default' | 'secondary' | 'outline' | 'destructive'; label: string }> = {
       LOW: { variant: 'outline', label: 'Low' },
       MEDIUM: { variant: 'secondary', label: 'Medium' },
       HIGH: { variant: 'default', label: 'High' },
+      URGENT: { variant: 'destructive', label: 'Urgent' },
     }
     const config = variants[priority] || { variant: 'outline', label: priority }
     return <Badge variant={config.variant}>{config.label}</Badge>
   }
+
+  const isTaskOverdue = (deadline: string | null) => {
+    if (!deadline) return false
+    return new Date(deadline) < new Date()
+  }
+
+  const getDaysUntilDeadline = (deadline: string | null) => {
+    if (!deadline) return null
+    return differenceInDays(new Date(deadline), new Date())
+  }
+
+  // Categorize tasks
+  const unassignedTasks = taskGroups?.serviceTasks?.filter((t: any) => !t.assignedUser) || []
+  const assignedTasks = taskGroups?.serviceTasks?.filter((t: any) => t.assignedUser && t.status === 'ASSIGNED') || []
+  const inProgressTasks = taskGroups?.serviceTasks?.filter((t: any) => t.status === 'IN_PROGRESS') || []
+  const completedTasks = taskGroups?.serviceTasks?.filter((t: any) => t.status === 'COMPLETED') || []
+  const overdueTasks = taskGroups?.serviceTasks?.filter((t: any) => 
+    t.status !== 'COMPLETED' && isTaskOverdue(t.deadline)
+  ) || []
+
+  // Categorize asking tasks
+  const askingTasks = taskGroups?.askingTasks || []
+  const completedAskingTasks = askingTasks.filter((t: any) => t.completedAt)
+  const pendingAskingTasks = askingTasks.filter((t: any) => !t.completedAt)
 
   if (isLoading) {
     return (
@@ -151,7 +180,7 @@ export default function OrderDetailPage({ params }: OrderDetailPageProps) {
   }
 
   return (
-    <div className="container mx-auto py-6 space-y-6">
+    <div className="flex flex-1 flex-col gap-6 p-6">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
@@ -159,387 +188,504 @@ export default function OrderDetailPage({ params }: OrderDetailPageProps) {
             <ArrowLeft className="h-5 w-5" />
           </Button>
           <div>
-            <h1 className="text-3xl font-bold">{order.orderType.name}</h1>
-            <p className="text-muted-foreground">
-              Order #{order.orderNumber}
-            </p>
+            <h1 className="text-3xl font-bold">Order #{order.orderNumber}</h1>
+            <p className="text-muted-foreground">{order.orderType.name}</p>
           </div>
         </div>
+        {canEdit && (
+          <OrderActionButtons
+            orderId={orderId}
+            currentDeliveryDate={order.deliveryDate}
+            currentAmount={order.amount.toString()}
+            currentNotes={order.notes}
+            onUpdate={fetchOrderDetails}
+            variant="default"
+          />
+        )}
       </div>
 
-      {/* Order Header Card */}
+      {/* Order Information Card */}
       <Card>
         <CardHeader>
-          <div className="flex items-start justify-between">
-            <div className="space-y-2">
-              <div className="flex items-center gap-3">
-                <CardTitle className="text-2xl">ID: #{order.orderNumber.slice(-4)}</CardTitle>
-                {getStatusBadge(order.status)}
-                <Badge variant="secondary">MEDIUM PRIORITY</Badge>
-              </div>
-              {order.status === 'PENDING' && (
-                <Badge variant="destructive" className="w-fit">
-                  <AlertCircle className="h-3 w-3 mr-1" />
-                  Delivery Blocked
-                </Badge>
-              )}
-            </div>
-            {canEdit && (
-              <OrderActionButtons
-                orderId={orderId}
-                currentDeliveryDate={order.deliveryDate}
-                currentAmount={order.amount.toString()}
-                currentNotes={order.notes}
-                onUpdate={fetchOrderDetails}
-                variant="default"
-              />
-            )}
+          <div className="flex items-center justify-between">
+            <CardTitle>Order Information</CardTitle>
+            {getStatusBadge(order.status)}
           </div>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             <div>
               <div className="flex items-center gap-2 text-sm text-muted-foreground mb-1">
                 <User className="h-4 w-4" />
-                CUSTOMER
+                Customer Name
               </div>
               <div className="font-medium">{order.customerName}</div>
             </div>
             <div>
               <div className="flex items-center gap-2 text-sm text-muted-foreground mb-1">
-                <Calendar className="h-4 w-4" />
-                CREATED
+                <FileText className="h-4 w-4" />
+                Customer Email
               </div>
-              <div className="font-medium">
-                {format(new Date(order.createdAt), 'MMM d, yyyy, hh:mm a')}
-              </div>
-              <div className="text-xs text-muted-foreground">
-                by {order.createdBy?.displayName || 'System'}
-              </div>
+              <div className="font-medium">{order.customerEmail}</div>
             </div>
             <div>
               <div className="flex items-center gap-2 text-sm text-muted-foreground mb-1">
-                <Package className="h-4 w-4" />
-                ORDER TYPE
+                <FileText className="h-4 w-4" />
+                Customer Phone
               </div>
-              <div className="font-medium">{order.orderType.name}</div>
-              <div className="text-xs text-muted-foreground">ID: #{order.orderType.id.slice(-4)}</div>
+              <div className="font-medium">{order.customerPhone || '-'}</div>
             </div>
             <div>
               <div className="flex items-center gap-2 text-sm text-muted-foreground mb-1">
                 <DollarSign className="h-4 w-4" />
-                AMOUNT
+                Amount
               </div>
-              <div className="font-medium">${order.amount}</div>
+              <div className="font-medium text-lg">${order.amount.toLocaleString()}</div>
             </div>
             <div>
               <div className="flex items-center gap-2 text-sm text-muted-foreground mb-1">
                 <Calendar className="h-4 w-4" />
-                ORDER DATE
+                Order Date
               </div>
-              <div className="font-medium">
-                {format(new Date(order.orderDate), 'MMM d, yyyy')}
-              </div>
+              <div className="font-medium">{format(new Date(order.orderDate), 'MMM d, yyyy')}</div>
             </div>
             <div>
               <div className="flex items-center gap-2 text-sm text-muted-foreground mb-1">
                 <Calendar className="h-4 w-4" />
-                DELIVERY
+                Delivery Date
               </div>
-              <div className="font-medium">
-                {format(new Date(order.deliveryDate), 'MMM d, yyyy')}
-              </div>
+              <div className="font-medium">{format(new Date(order.deliveryDate), 'MMM d, yyyy')}</div>
             </div>
+            <div>
+              <div className="flex items-center gap-2 text-sm text-muted-foreground mb-1">
+                <Package className="h-4 w-4" />
+                Order Type
+              </div>
+              <div className="font-medium">{order.orderType.name}</div>
+            </div>
+            <div>
+              <div className="flex items-center gap-2 text-sm text-muted-foreground mb-1">
+                <User className="h-4 w-4" />
+                Created By
+              </div>
+              <div className="font-medium">{order.createdBy?.displayName || 'System'}</div>
+            </div>
+            <div>
+              <div className="flex items-center gap-2 text-sm text-muted-foreground mb-1">
+                <Clock className="h-4 w-4" />
+                Created At
+              </div>
+              <div className="font-medium">{format(new Date(order.createdAt), 'MMM d, yyyy, hh:mm a')}</div>
+            </div>
+            {order.folderLink && (
+              <div className="col-span-full">
+                <div className="flex items-center gap-2 text-sm text-muted-foreground mb-1">
+                  <ExternalLink className="h-4 w-4" />
+                  Folder Link
+                </div>
+                <Button variant="outline" size="sm" asChild>
+                  <a href={order.folderLink} target="_blank" rel="noopener noreferrer">
+                    <ExternalLink className="h-4 w-4 mr-2" />
+                    Open Folder
+                  </a>
+                </Button>
+              </div>
+            )}
+            {order.notes && (
+              <div className="col-span-full">
+                <div className="flex items-center gap-2 text-sm text-muted-foreground mb-1">
+                  <FileText className="h-4 w-4" />
+                  Notes
+                </div>
+                <div className="text-sm p-3 bg-muted rounded-md">{order.notes}</div>
+              </div>
+            )}
           </div>
         </CardContent>
       </Card>
 
-      {/* Statistics Card */}
-      <Card>
-        <CardContent className="pt-6">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+      {/* Statistics Overview */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+        <Card>
+          <CardContent className="pt-6">
+            <div className="flex items-center gap-3">
+              <div className="p-3 rounded-lg bg-blue-100 dark:bg-blue-900">
+                <Package className="h-6 w-6 text-blue-600 dark:text-blue-400" />
+              </div>
+              <div>
+                <div className="text-2xl font-bold">{statistics.totalTasks}</div>
+                <div className="text-sm text-muted-foreground">Total Tasks</div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        
+        <Card>
+          <CardContent className="pt-6">
             <div className="flex items-center gap-3">
               <div className="p-3 rounded-lg bg-green-100 dark:bg-green-900">
                 <CheckCircle2 className="h-6 w-6 text-green-600 dark:text-green-400" />
               </div>
               <div>
-                <div className="text-2xl font-bold">{statistics.completedTasks}/{statistics.totalTasks}</div>
-                <div className="text-sm text-muted-foreground">Tasks Completed</div>
+                <div className="text-2xl font-bold">{statistics.completedTasks}</div>
+                <div className="text-sm text-muted-foreground">Completed</div>
               </div>
             </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="pt-6">
             <div className="flex items-center gap-3">
               <div className="p-3 rounded-lg bg-yellow-100 dark:bg-yellow-900">
                 <AlertCircle className="h-6 w-6 text-yellow-600 dark:text-yellow-400" />
               </div>
               <div>
                 <div className="text-2xl font-bold">{statistics.unassignedTasks}</div>
-                <div className="text-sm text-muted-foreground">Unassigned Tasks</div>
+                <div className="text-sm text-muted-foreground">Unassigned</div>
               </div>
             </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="pt-6">
             <div className="flex items-center gap-3">
               <div className="p-3 rounded-lg bg-red-100 dark:bg-red-900">
                 <Clock className="h-6 w-6 text-red-600 dark:text-red-400" />
               </div>
               <div>
                 <div className="text-2xl font-bold">{statistics.overdueTasks}</div>
-                <div className="text-sm text-muted-foreground">Overdue Tasks</div>
+                <div className="text-sm text-muted-foreground">Overdue</div>
               </div>
             </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="pt-6">
             <div className="flex items-center gap-3">
-              <div className="p-3 rounded-lg bg-blue-100 dark:bg-blue-900">
-                <TrendingUp className="h-6 w-6 text-blue-600 dark:text-blue-400" />
+              <div className="p-3 rounded-lg bg-purple-100 dark:bg-purple-900">
+                <TrendingUp className="h-6 w-6 text-purple-600 dark:text-purple-400" />
               </div>
               <div>
                 <div className="text-2xl font-bold">{statistics.daysOld}</div>
                 <div className="text-sm text-muted-foreground">Days Old</div>
               </div>
             </div>
-          </div>
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+      </div>
 
-      {/* Mandatory Tasks Remaining */}
-      {statistics.mandatoryRemaining > 0 && (
-        <Card className="border-zinc-200 dark:border-zinc-800">
-          <CardHeader className="border-b">
+      {/* Asking Tasks */}
+      {askingTasks.length > 0 && (
+        <Card>
+          <CardHeader>
             <div className="flex items-center justify-between">
               <div>
-                <CardTitle className="flex items-center gap-2 text-lg">
-                  <AlertCircle className="h-5 w-5 text-zinc-500" />
-                  Mandatory Tasks
-                </CardTitle>
-                <CardDescription className="mt-1">
-                  {statistics.mandatoryRemaining} task{statistics.mandatoryRemaining !== 1 ? 's' : ''} must be completed before delivery
+                <CardTitle>Asking Tasks</CardTitle>
+                <CardDescription>
+                  Customer information and detail collection tasks
                 </CardDescription>
               </div>
-              <Badge variant="secondary" className="text-sm">
-                {statistics.mandatoryRemaining} Remaining
-              </Badge>
+              <div className="flex gap-2">
+                <Badge variant="secondary">{completedAskingTasks.length} Completed</Badge>
+                <Badge variant="outline">{pendingAskingTasks.length} Pending</Badge>
+              </div>
             </div>
           </CardHeader>
-          <CardContent className="pt-6">
-            <div className="space-y-3">
-              {taskGroups.mandatoryTasks && taskGroups.mandatoryTasks.length > 0 ? (
-                taskGroups.mandatoryTasks.map((task: any) => (
-                  <div
-                    key={task.id}
-                    className="p-4 border border-zinc-200 dark:border-zinc-800 rounded-lg hover:border-zinc-300 dark:hover:border-zinc-700 transition-colors"
-                  >
-                    <div className="flex items-start justify-between gap-4">
-                      <div className="flex-1 space-y-3">
-                        <div className="flex items-center gap-2">
-                          {'service' in task && task.service ? (
-                            <Badge variant="outline" className="text-xs">
-                              Asking
-                            </Badge>
-                          ) : (
-                            <Badge variant="outline" className="text-xs">
-                              Service
-                            </Badge>
-                          )}
-                          <span className="font-medium text-sm">
-                            {task.service?.name || task.title || 'Custom Task'}
-                          </span>
-                        </div>
-                        
-                        <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
-                          {'currentStage' in task && task.currentStage && (
-                            <div className="flex items-center gap-1.5">
-                              <Clock className="h-3 w-3" />
-                              <span>{task.currentStage.replace(/_/g, ' ')}</span>
-                            </div>
-                          )}
-                          
-                          {task.assignedUser ? (
-                            <div className="flex items-center gap-1.5">
-                              <User className="h-3 w-3" />
-                              <span>{task.assignedUser.displayName || task.assignedUser.email}</span>
-                            </div>
-                          ) : (
-                            <div className="flex items-center gap-1.5 text-yellow-600 dark:text-yellow-500">
-                              <AlertCircle className="h-3 w-3" />
-                              <span>Unassigned</span>
-                            </div>
-                          )}
-                        </div>
-                        
-                        {'progress' in task && task.progress && (
-                          <div className="space-y-1.5">
-                            <div className="flex items-center justify-between text-xs">
-                              <span className="text-muted-foreground">
-                                {task.progress.completed} of {task.progress.total} stages
-                              </span>
-                              <span className="font-medium">{task.progress.percentage}%</span>
-                            </div>
-                            <div className="h-1.5 bg-zinc-100 dark:bg-zinc-800 rounded-full overflow-hidden">
-                              <div
-                                className="h-full bg-zinc-900 dark:bg-zinc-100 transition-all"
-                                style={{ width: `${task.progress.percentage}%` }}
-                              />
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                      
-                      <div>
-                        {'currentStage' in task ? (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleShowAskingTaskDetails(task.id)}
-                          >
-                            Details
-                          </Button>
-                        ) : (
-                          <Link href={`/member/tasks/${orderId}`}>
-                            <Button variant="outline" size="sm">
-                              <ExternalLink className="h-3.5 w-3.5" />
-                            </Button>
-                          </Link>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                ))
-              ) : (
-                <div className="text-center py-8 text-sm text-muted-foreground">
-                  No mandatory tasks remaining
-                </div>
-              )}
+          <CardContent>
+            <div className="flex flex-wrap gap-2">
+              {askingTasks.map((task: any) => (
+                <Badge
+                  key={task.id}
+                  className={`cursor-pointer transition-transform hover:scale-105 ${
+                    task.completedAt
+                      ? 'bg-green-500 hover:bg-green-600 text-white'
+                      : 'bg-blue-500 hover:bg-blue-600 text-white'
+                  }`}
+                  onClick={() => handleShowAskingTaskDetails(task.id)}
+                >
+                  {task.service?.name || task.title}
+                </Badge>
+              ))}
             </div>
           </CardContent>
         </Card>
       )}
 
-      {/* Service Tasks */}
-      <Card>
-        <CardHeader>
-          <div className="flex items-center justify-between">
+      {/* Overdue Tasks */}
+      {overdueTasks.length > 0 && (
+        <Card className="border-red-200 dark:border-red-900">
+          <CardHeader>
             <div className="flex items-center gap-2">
-              <Package className="h-5 w-5" />
-              <CardTitle>Service Tasks</CardTitle>
-              <Badge variant="secondary">
-                {taskGroups.serviceTasks.filter((t: any) => t.status === 'DONE').length} done
-              </Badge>
-              <Badge variant="outline">
-                {taskGroups.serviceTasks.filter((t: any) => t.status !== 'ASSIGNED').length} ready to assign
-              </Badge>
+              <AlertCircle className="h-5 w-5 text-red-600" />
+              <CardTitle className="text-red-600">Overdue Tasks ({overdueTasks.length})</CardTitle>
             </div>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setShowServiceTasks(!showServiceTasks)}
-            >
-              {showServiceTasks ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-              {showServiceTasks ? 'Hide' : 'Show'} Service Tasks
-            </Button>
-          </div>
-        </CardHeader>
-        {showServiceTasks && (
+            <CardDescription>These tasks have passed their deadline</CardDescription>
+          </CardHeader>
           <CardContent>
-            <div className="space-y-3">
-              {taskGroups.serviceTasks.map((task: any) => (
-                <div
-                  key={task.id}
-                  className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50 dark:hover:bg-gray-900"
-                >
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2 mb-1">
-                      <span className="font-medium">{task.service?.name || 'Custom Task'}</span>
-                      <Badge variant={task.status === 'DONE' ? 'default' : 'secondary'}>
-                        {task.status}
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Task</TableHead>
+                  <TableHead>Assigned To</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Priority</TableHead>
+                  <TableHead>Deadline</TableHead>
+                  <TableHead>Days Overdue</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {overdueTasks.map((task: any) => (
+                  <TableRow key={task.id} className="bg-red-50 dark:bg-red-950/20">
+                    <TableCell className="font-medium">{task.service?.name || task.title}</TableCell>
+                    <TableCell>
+                      {task.assignedUser ? (
+                        <div className="flex items-center gap-2">
+                          <User className="h-4 w-4" />
+                          {task.assignedUser.displayName || task.assignedUser.email}
+                        </div>
+                      ) : (
+                        <Badge variant="secondary">Unassigned</Badge>
+                      )}
+                    </TableCell>
+                    <TableCell>{getStatusBadge(task.status)}</TableCell>
+                    <TableCell>{getPriorityBadge(task.priority)}</TableCell>
+                    <TableCell>
+                      {task.deadline ? format(new Date(task.deadline), 'MMM d, yyyy, hh:mm a') : '-'}
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant="destructive">
+                        {Math.abs(getDaysUntilDeadline(task.deadline) || 0)} days
                       </Badge>
-                      {getPriorityBadge(task.priority)}
-                    </div>
-                    {task.assignedUser && (
-                      <div className="text-sm text-muted-foreground">
-                        Assigned to: {task.assignedUser.displayName || task.assignedUser.email}
-                      </div>
-                    )}
-                  </div>
-                  <Link href={`/member/tasks/${orderId}`}>
-                    <Button variant="outline" size="sm">
-                      <ExternalLink className="h-4 w-4 mr-1" />
-                      View
-                    </Button>
-                  </Link>
-                </div>
-              ))}
-              {taskGroups.serviceTasks.length === 0 && (
-                <div className="text-center py-8 text-muted-foreground">
-                  No service tasks
-                </div>
-              )}
-            </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
           </CardContent>
-        )}
-      </Card>
+        </Card>
+      )}
 
-      {/* Asking Task Progress */}
-      <Card>
-        <CardHeader>
-          <div className="flex items-center justify-between">
+      {/* Unassigned Tasks */}
+      {unassignedTasks.length > 0 && (
+        <Card className="border-yellow-200 dark:border-yellow-900">
+          <CardHeader>
             <div className="flex items-center gap-2">
-              <FileText className="h-5 w-5" />
-              <CardTitle>Asking Task Progress</CardTitle>
+              <AlertCircle className="h-5 w-5 text-yellow-600" />
+              <CardTitle>Unassigned Tasks ({unassignedTasks.length})</CardTitle>
             </div>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setShowAskingTasks(!showAskingTasks)}
-            >
-              {showAskingTasks ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-              {showAskingTasks ? 'Hide' : 'Show'} Asking Tasks
-            </Button>
-          </div>
-        </CardHeader>
-        {showAskingTasks && (
+            <CardDescription>These tasks need to be assigned to team members</CardDescription>
+          </CardHeader>
           <CardContent>
-            <div className="space-y-3">
-              {taskGroups.askingTasks.map((task: any) => (
-                <div
-                  key={task.id}
-                  className="p-4 border rounded-lg hover:bg-gray-50 dark:hover:bg-gray-900"
-                >
-                  <div className="flex items-center justify-between mb-3">
-                    <div className="flex-1">
-                      <div className="font-medium mb-1">{task.service?.name || 'Custom Task'}</div>
-                      <div className="flex items-center gap-2">
-                        <Badge 
-                          variant={task.completedAt ? 'default' : 'secondary'}
-                        >
-                          {task.completedAt ? 'Fully Completed' : `${task.currentStage.replace('_', ' ')}: ${task.progress.completed}/${task.progress.total} completed`}
-                        </Badge>
-                      </div>
-                    </div>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handleShowAskingTaskDetails(task.id)}
-                    >
-                      Show Details
-                    </Button>
-                  </div>
-                  {/* Progress bar */}
-                  <div className="mt-3">
-                    <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
-                      <div
-                        className="h-full bg-blue-600 transition-all"
-                        style={{ width: `${task.progress.percentage}%` }}
-                      />
-                    </div>
-                  </div>
-                </div>
-              ))}
-              {taskGroups.askingTasks.length === 0 && (
-                <div className="text-center py-8 text-muted-foreground">
-                  No asking tasks
-                </div>
-              )}
-            </div>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Task</TableHead>
+                  <TableHead>Priority</TableHead>
+                  <TableHead>Deadline</TableHead>
+                  <TableHead>Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {unassignedTasks.map((task: any) => (
+                  <TableRow key={task.id}>
+                    <TableCell className="font-medium">{task.service?.name || task.title}</TableCell>
+                    <TableCell>{getPriorityBadge(task.priority)}</TableCell>
+                    <TableCell>
+                      {task.deadline ? format(new Date(task.deadline), 'MMM d, yyyy, hh:mm a') : '-'}
+                    </TableCell>
+                    <TableCell>
+                      {isTeamLeader && (
+                        <Link href={`/member/tasks/${orderId}`}>
+                          <Button variant="outline" size="sm">
+                            Assign
+                          </Button>
+                        </Link>
+                      )}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
           </CardContent>
-        )}
-      </Card>
+        </Card>
+      )}
+
+      {/* In Progress Tasks */}
+      {inProgressTasks.length > 0 && (
+        <Card>
+          <CardHeader>
+            <div className="flex items-center gap-2">
+              <PlayCircle className="h-5 w-5 text-blue-600" />
+              <CardTitle>In Progress Tasks ({inProgressTasks.length})</CardTitle>
+            </div>
+            <CardDescription>Tasks currently being worked on</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Task</TableHead>
+                  <TableHead>Assigned To</TableHead>
+                  <TableHead>Priority</TableHead>
+                  <TableHead>Started</TableHead>
+                  <TableHead>Deadline</TableHead>
+                  <TableHead>Time Remaining</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {inProgressTasks.map((task: any) => {
+                  const daysRemaining = getDaysUntilDeadline(task.deadline)
+                  return (
+                    <TableRow key={task.id}>
+                      <TableCell className="font-medium">{task.service?.name || task.title}</TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-2">
+                          <User className="h-4 w-4" />
+                          {task.assignedUser?.displayName || task.assignedUser?.email}
+                        </div>
+                      </TableCell>
+                      <TableCell>{getPriorityBadge(task.priority)}</TableCell>
+                      <TableCell>
+                        {task.startedAt ? format(new Date(task.startedAt), 'MMM d, yyyy') : '-'}
+                      </TableCell>
+                      <TableCell>
+                        {task.deadline ? format(new Date(task.deadline), 'MMM d, yyyy, hh:mm a') : '-'}
+                      </TableCell>
+                      <TableCell>
+                        {daysRemaining !== null && (
+                          <Badge variant={daysRemaining < 0 ? 'destructive' : daysRemaining <= 1 ? 'secondary' : 'outline'}>
+                            {daysRemaining < 0 
+                              ? `${Math.abs(daysRemaining)} days overdue`
+                              : daysRemaining === 0 
+                              ? 'Due today' 
+                              : `${daysRemaining} days left`
+                            }
+                          </Badge>
+                        )}
+                      </TableCell>
+                    </TableRow>
+                  )
+                })}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Assigned (Not Started) Tasks */}
+      {assignedTasks.length > 0 && (
+        <Card>
+          <CardHeader>
+            <div className="flex items-center gap-2">
+              <PauseCircle className="h-5 w-5" />
+              <CardTitle>Assigned Tasks ({assignedTasks.length})</CardTitle>
+            </div>
+            <CardDescription>Tasks assigned but not yet started</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Task</TableHead>
+                  <TableHead>Assigned To</TableHead>
+                  <TableHead>Priority</TableHead>
+                  <TableHead>Deadline</TableHead>
+                  <TableHead>Days Until Deadline</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {assignedTasks.map((task: any) => {
+                  const daysRemaining = getDaysUntilDeadline(task.deadline)
+                  return (
+                    <TableRow key={task.id}>
+                      <TableCell className="font-medium">{task.service?.name || task.title}</TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-2">
+                          <User className="h-4 w-4" />
+                          {task.assignedUser?.displayName || task.assignedUser?.email}
+                        </div>
+                      </TableCell>
+                      <TableCell>{getPriorityBadge(task.priority)}</TableCell>
+                      <TableCell>
+                        {task.deadline ? format(new Date(task.deadline), 'MMM d, yyyy, hh:mm a') : '-'}
+                      </TableCell>
+                      <TableCell>
+                        {daysRemaining !== null && (
+                          <Badge variant={daysRemaining <= 2 ? 'secondary' : 'outline'}>
+                            {daysRemaining === 0 ? 'Due today' : `${daysRemaining} days`}
+                          </Badge>
+                        )}
+                      </TableCell>
+                    </TableRow>
+                  )
+                })}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Completed Tasks */}
+      {completedTasks.length > 0 && (
+        <Card>
+          <CardHeader>
+            <div className="flex items-center gap-2">
+              <CheckCircle2 className="h-5 w-5 text-green-600" />
+              <CardTitle>Completed Tasks ({completedTasks.length})</CardTitle>
+            </div>
+            <CardDescription>Successfully completed tasks</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Task</TableHead>
+                  <TableHead>Completed By</TableHead>
+                  <TableHead>Priority</TableHead>
+                  <TableHead>Started</TableHead>
+                  <TableHead>Completed</TableHead>
+                  <TableHead>Duration</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {completedTasks.map((task: any) => {
+                  const duration = task.startedAt && task.completedAt
+                    ? differenceInDays(new Date(task.completedAt), new Date(task.startedAt))
+                    : null
+                  return (
+                    <TableRow key={task.id}>
+                      <TableCell className="font-medium">{task.service?.name || task.title}</TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-2">
+                          <User className="h-4 w-4" />
+                          {task.assignedUser?.displayName || task.assignedUser?.email}
+                        </div>
+                      </TableCell>
+                      <TableCell>{getPriorityBadge(task.priority)}</TableCell>
+                      <TableCell>
+                        {task.startedAt ? format(new Date(task.startedAt), 'MMM d, yyyy') : '-'}
+                      </TableCell>
+                      <TableCell>
+                        {task.completedAt ? format(new Date(task.completedAt), 'MMM d, yyyy') : '-'}
+                      </TableCell>
+                      <TableCell>
+                        {duration !== null && (
+                          <Badge variant="outline">
+                            {duration === 0 ? 'Same day' : `${duration} days`}
+                          </Badge>
+                        )}
+                      </TableCell>
+                    </TableRow>
+                  )
+                })}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Stage Details Modal */}
       {selectedAskingTaskId && (

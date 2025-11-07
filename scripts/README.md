@@ -1,87 +1,143 @@
-# Add Members Script
+# Database Seeding Scripts
 
-This script adds all members from the temp.txt file to the database and syncs them with Supabase Auth.
+This folder contains scripts to populate your database with initial data for testing and development.
 
-## Prerequisites
+## Quick Start - Seed Everything at Once
 
-Make sure you have the `SUPABASE_SERVICE_ROLE_KEY` in your `.env` file. This is the service role key (not the anon key) which has admin privileges.
+To populate your entire database with all data, simply run:
 
-Add this to your `.env` file:
+```bash
+npx tsx scripts/seed-database.ts
 ```
-SUPABASE_SERVICE_ROLE_KEY=your_service_role_key_here
+
+This master script will run all seeding scripts in the correct order:
+1. Create admin user
+2. Create teams
+3. Add member users
+4. Create services
+5. Create order types
+
+## Individual Scripts
+
+You can also run each script individually if needed:
+
+### 1. Create Admin User
+
+```bash
+npx tsx scripts/create-admin.ts
 ```
 
-You can find this key in your Supabase project settings under API.
+Creates an admin user account for system administration.
 
-## How to Run
+### 2. Create Teams
 
-From the project root directory, run:
+```bash
+npx tsx scripts/create-teams.ts
+```
+
+Creates teams in the system. **Note:** All services are currently assigned to "Website Optimization Team" for easier testing.
+
+### 3. Add Members
 
 ```bash
 npx tsx scripts/add-members.ts
 ```
 
-Or if you have tsx installed globally:
+Creates member user accounts and assigns them to teams.
 
-```bash
-tsx scripts/add-members.ts
-```
-
-## What the Script Does
-
-1. **Creates users in Supabase Auth** with:
-   - Email: `<firstname>@pms.com` (lowercase)
-   - Password: `admin123`
-   - Email auto-confirmed
-
-2. **Creates/Updates users in the database** with:
-   - Role: MEMBER
-   - Employee ID from the list
-   - Active status: true
-   - Display name and first name set to their name
-
-## Members Being Added
-
+**Members added:**
 - Aishwarya (ZOOT1049)
 - Ronit (ZOOT1012)
 - Pranali (ZOOT1074)
 - Srushti (ZOOT1072)
 - Narayan (ZOOT1003)
 - Robin (ZOOT1004)
-- Karuna (ZOOT1006)
-- Shreedhar (ZOOT1007)
-- Kunal (ZOOT1008)
-- Sopan (ZOOT1025)
-- Pratik (ZOOT1031)
-- Neha (ZOOT1042)
-- Monika (ZOOT1059)
-- Jannat (ZOOT1060)
-- Sneha (ZOOT1061)
-- Kashish (ZOOT1066)
-- Divya (ZOOT1067)
-- Shruti (ZOOT1068)
-- Prarthana (ZOOT1069)
-- Asmita (ZOOT1071)
-- Sashidaran (ZOOT1076)
-- Kritika (ZOOT1078)
+
+Default credentials:
+- Email: `<firstname>@pms.com` (lowercase)
+- Password: `admin123`
+
+### 4. Create Services
+
+```bash
+npx tsx scripts/create-services.ts
+```
+
+Creates service tasks and detail tasks (asking services).
+
+**Services created:**
+- 9 Service Tasks: Website Analysis, Keyword Research, On-Page SEO, Website Development, Responsive Design, Backlink Building, Guest Posting, SWOT Analysis, Competitor Analysis
+- 6 Detail Tasks: Website Access Details, Hosting Details, Domain Details, Analytics Access, Social Media Access, Business Information
+
+**Note:** All services are assigned to "Website Optimization Team" for testing purposes.
+
+### 5. Create Order Types
+
+```bash
+npx tsx scripts/create-order-types.ts
+```
+
+Creates order type packages with service associations.
+
+**Order types created:**
+- Basic SEO Package (7 days)
+- Complete SEO Package (14 days)
+- Website Development Package (21 days)
+- Backlink Building Package (30 days)
+- Business Analysis Package (7 days)
+- Starter Package (5 days)
+- Premium SEO & Development (30 days)
+- Social Media Integration (10 days)
+- Quick SEO Audit (3 days)
+- Enterprise Package (45 days)
+
+## Prerequisites
+
+Make sure you have the following in your `.env` file:
+
+```env
+SUPABASE_SERVICE_ROLE_KEY=your_service_role_key_here
+DATABASE_URL=your_database_connection_string
+```
+
+You can find the service role key in your Supabase project settings under API.
+
+## Testing Setup
+
+All services are currently assigned to **"Website Optimization Team"** for easier testing. This means you only need to login as one member from that team to test all functionality without switching between multiple accounts.
+
+## Troubleshooting
+
+If scripts fail:
+1. Check your database connection
+2. Verify your `.env` configuration
+3. Ensure migrations are up to date: `npx prisma migrate dev`
+4. Run failed scripts individually to see detailed errors
 
 ## Login Credentials
 
-After running the script, all members can log in with:
-- Email: `<their_firstname>@pms.com` (e.g., `aishwarya@pms.com`)
+After running the seeding scripts:
+
+**Admin:**
+- Check console output for admin credentials
+
+**Members:**
+- Email: `<firstname>@pms.com` (e.g., `aishwarya@pms.com`)
 - Password: `admin123`
 
-## Error Handling
+## Post-Seeding Steps
 
-The script will:
-- Check if users already exist before creating
-- Update existing users if they're already in the database
-- Show a summary of successful and failed operations
-- Continue processing even if some users fail
+1. Login as admin
+2. Verify teams at `/admin/teams`
+3. Verify services at `/admin/services`
+4. Verify order types at `/admin/order-types`
+5. Create your first order!
 
-## Notes
+## Script Details
 
-- The script uses the Supabase Admin API which requires the service role key
-- All emails will be auto-confirmed (no email verification required)
-- Users can change their passwords after first login
-- All users are created with the MEMBER role
+### seed-database.ts
+Master script that runs all seeding scripts in the correct order with:
+- Colored console output for better visibility
+- Progress tracking and summary
+- Error handling and retry logic
+- Automatic stopping on required script failures

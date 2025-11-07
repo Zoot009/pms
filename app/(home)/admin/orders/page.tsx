@@ -23,6 +23,7 @@ import {
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Plus, Search } from 'lucide-react'
 import { format } from 'date-fns'
+import { OrderActions } from './order-actions'
 
 async function getOrdersList(
   searchQuery?: string,
@@ -44,8 +45,8 @@ async function getOrdersList(
   if (statusFilter && statusFilter !== 'ALL') {
     whereCondition.status = statusFilter
   } else {
-    // By default, exclude delivered orders unless specifically filtered
-    whereCondition.status = { not: 'DELIVERED' }
+    // By default, exclude completed/delivered orders unless specifically filtered
+    whereCondition.completedAt = null
   }
 
   if (orderTypeFilter) {
@@ -205,14 +206,7 @@ async function OrdersTable({
                 <TableCell>{getStatusBadge(order.status)}</TableCell>
                 <TableCell>{getFolderStatusBadge(order.folderLink)}</TableCell>
                 <TableCell className="text-right">
-                  <div className="flex gap-2 justify-end">
-                    <Button variant="outline" size="sm" asChild>
-                      <Link href={`/admin/orders/${order.id}`}>Edit</Link>
-                    </Button>
-                    <Button variant="destructive" size="sm">
-                      Delete
-                    </Button>
-                  </div>
+                  <OrderActions orderId={order.id} orderNumber={order.orderNumber} />
                 </TableCell>
               </TableRow>
             ))

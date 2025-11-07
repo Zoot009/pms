@@ -275,14 +275,18 @@ export default function MyTasksPage() {
                 {order.askingTasks && order.askingTasks.length > 0 && (
                   <div className="mt-4 space-y-2">
                     <div className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                      Pending Asking Tasks
+                      Asking Tasks
                     </div>
                     <div className="flex flex-wrap gap-2">
                       {order.askingTasks.map((askingTask) => (
                         <Link key={askingTask.id} href={`/asking-tasks`}>
                           <Badge
                             variant="secondary"
-                            className="cursor-pointer transition-transform hover:scale-105 bg-blue-500 hover:bg-blue-600 text-white"
+                            className={`cursor-pointer transition-transform hover:scale-105 ${
+                              askingTask.completedAt
+                                ? 'bg-green-500 hover:bg-green-600 text-white'
+                                : 'bg-blue-500 hover:bg-blue-600 text-white'
+                            }`}
                           >
                             {askingTask.serviceName}
                           </Badge>
@@ -339,9 +343,10 @@ export default function MyTasksPage() {
                           {task.status === 'IN_PROGRESS' && (
                             <Button
                               size="sm"
-                              variant="default"
+                              variant="outline"
                               onClick={() => handleCompleteTask(task.id)}
                               disabled={completingTaskId === task.id}
+                              className='text-green-500 hover:text-green-700'
                             >
                               {completingTaskId === task.id ? (
                                 <>

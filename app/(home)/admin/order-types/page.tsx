@@ -21,6 +21,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Plus, Search } from 'lucide-react'
+import { OrderTypeActions } from './order-type-actions'
 
 async function getOrderTypesList(searchQuery?: string, statusFilter?: string) {
   const whereCondition: any = {}
@@ -122,14 +123,7 @@ async function OrderTypesTable({
                   </Badge>
                 </TableCell>
                 <TableCell className="text-right">
-                  <div className="flex gap-2 justify-end">
-                    <Button variant="outline" size="sm" asChild>
-                      <Link href={`/admin/order-types/${orderType.id}`}>Edit</Link>
-                    </Button>
-                    <Button variant="destructive" size="sm">
-                      Delete
-                    </Button>
-                  </div>
+                  <OrderTypeActions orderTypeId={orderType.id} orderTypeName={orderType.name} />
                 </TableCell>
               </TableRow>
             ))

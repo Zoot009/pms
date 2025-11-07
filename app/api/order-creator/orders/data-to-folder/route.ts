@@ -11,11 +11,8 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ message: 'Unauthorized' }, { status: 401 })
     }
 
-    // Fetch all orders created by this order creator (with and without folder links)
+    // Fetch all orders (ORDER_CREATOR can see all orders)
     const orders = await prisma.order.findMany({
-      where: {
-        createdById: user.id, // Only show orders created by this order creator
-      },
       include: {
         orderType: {
           select: {

@@ -68,9 +68,6 @@ export async function GET(request: NextRequest) {
               },
             },
             askingTasks: {
-              where: {
-                completedAt: null,
-              },
               include: {
                 service: {
                   select: {

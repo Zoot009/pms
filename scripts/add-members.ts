@@ -17,27 +17,28 @@ const prisma = new PrismaClient()
 
 // Member data from the file
 const members = [
-  { firstName: 'Pratik', employeeId: 'ZOOT1031', email: "pratikp3699@gmail.com" },
-  { firstName: 'Karuna', employeeId: 'ZOOT1006', email: "kmhatre2403@gmail.com" },
-  { firstName: 'Sopan', employeeId: 'ZOOT1025', email: "bargajesopan@gmail.com" },
-  { firstName: 'Narayan', employeeId: 'ZOOT1003', email: "naryanyadav0604@gmail.com" },
-  { firstName: 'Aishwarya', employeeId: 'ZOOT1049', email: "@gmail.com" },
-  { firstName: 'Ronit', employeeId: 'ZOOT1012', email: "@gmail.com" },
-  { firstName: 'Srushti', employeeId: 'ZOOT1072', email: "@gmail.com" },
-  { firstName: 'Robin', employeeId: 'ZOOT1004', email: "@gmail.com" },
-  { firstName: 'Shreedhar', employeeId: 'ZOOT1007', email: "@gmail.com" },
-  { firstName: 'Kunal', employeeId: 'ZOOT1008', email: "@gmail.com" },
-  { firstName: 'Neha', employeeId: 'ZOOT1042', email: "@gmail.com" },
-  { firstName: 'Monika', employeeId: 'ZOOT1059', email: "@gmail.com" },
-  { firstName: 'Jannat', employeeId: 'ZOOT1060', email: "@gmail.com" },
-  { firstName: 'Sneha', employeeId: 'ZOOT1061', email: "@gmail.com" },
-  { firstName: 'Kashish', employeeId: 'ZOOT1066', email: "@gmail.com" },
-  { firstName: 'Divya', employeeId: 'ZOOT1067', email: "@gmail.com" },
-  { firstName: 'Shruti', employeeId: 'ZOOT1068', email: "@gmail.com" },
-  { firstName: 'Prarthana', employeeId: 'ZOOT1069', email: "@gmail.com" },
-  { firstName: 'Asmita', employeeId: 'ZOOT1071', email: "@gmail.com" },
-  { firstName: 'Sashidaran', employeeId: 'ZOOT1076', email: "@gmail.com" },
-  { firstName: 'Kritika', employeeId: 'ZOOT1078', email: "@gmail.com" },
+  { firstName: 'Pratik', employeeId: 'ZOOT1031', email: "pratik@pms.com" },
+  { firstName: 'Karuna', employeeId: 'ZOOT1006', email: "karuna@pms.com" },
+  { firstName: 'Sopan', employeeId: 'ZOOT1025', email: "sopan@pms.com" },
+  { firstName: 'Narayan', employeeId: 'ZOOT1003', email: "naryan@pms.com" },
+  { firstName: 'Aishwarya', employeeId: 'ZOOT1049', email: "aishwarya@pms.com" },
+  { firstName: 'Ronit', employeeId: 'ZOOT1012', email: "ronit@pms.com" },
+  { firstName: 'Srushti', employeeId: 'ZOOT1072', email: "srushti@pms.com" },
+  { firstName: 'Robin', employeeId: 'ZOOT1004', email: "robin@pms.com" },
+  { firstName: 'Shreedhar', employeeId: 'ZOOT1007', email: "shreedhar@pms.com" },
+  { firstName: 'Kunal', employeeId: 'ZOOT1008', email: "kunal@pms.com" },
+  { firstName: 'Neha', employeeId: 'ZOOT1042', email: "neha@pms.com" },
+  { firstName: 'Monika', employeeId: 'ZOOT1059', email: "monika@pms.com" },
+  { firstName: 'Jannat', employeeId: 'ZOOT1060', email: "jannat@pms.com" },
+  { firstName: 'Sneha', employeeId: 'ZOOT1061', email: "sneha@pms.com" },
+  { firstName: 'Kashish', employeeId: 'ZOOT1066', email: "kashish@pms.com" },
+  { firstName: 'Divya', employeeId: 'ZOOT1067', email: "divya@pms.com" },
+  { firstName: 'Shruti', employeeId: 'ZOOT1068', email: "shruti@pms.com" },
+  { firstName: 'Prarthana', employeeId: 'ZOOT1069', email: "prarthana@pms.com" },
+  { firstName: 'Asmita', employeeId: 'ZOOT1071', email: "asmita@pms.com" },
+  { firstName: 'Sashidaran', employeeId: 'ZOOT1076', email: "sashidaran@pms.com" },
+  { firstName: 'Kritika', employeeId: 'ZOOT1078', email: "kritika@pms.com" },
+  { firstName: 'Pranali', employeeId: 'ZOOT1011', email: "pranali@pms.com" }
 ]
 
 async function addMembers() {
@@ -47,7 +48,7 @@ async function addMembers() {
   let errorCount = 0
 
   for (const member of members) {
-    const email = `${member.firstName.toLowerCase()}@pms.com`
+    const email = member.email
     const password = 'admin123'
 
     try {
@@ -139,7 +140,6 @@ async function addMembers() {
   console.log(`✅ Successfully processed: ${successCount}`)
   console.log(`❌ Failed: ${errorCount}`)
   console.log('\nAll users have been configured with:')
-  console.log('  Email: <firstname>@pms.com')
   console.log('  Password: admin123')
   console.log('  Role: MEMBER')
 }

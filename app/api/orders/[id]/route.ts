@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import prisma from '@/lib/prisma'
-import { getCurrentUser } from '@/lib/auth-utils'
+import { getCurrentUser, createAuditLog } from '@/lib/auth-utils'
+import { UserRole } from '@/lib/generated/prisma'
 
 export async function GET(
   request: NextRequest,
@@ -109,19 +110,7 @@ export async function GET(
       return NextResponse.json({ error: 'Order not found' }, { status: 404 })
     }
 
-    // Check access permissions
-    if (currentUser.role === 'MEMBER') {
-      const hasAccess =
-        (order as any).tasks.some((t: any) => t.assignedTo === currentUser.id) ||
-        (order as any).askingTasks.some((t: any) => t.assignedTo === currentUser.id)
-
-      if (!hasAccess) {
-        return NextResponse.json(
-          { error: 'You do not have access to this order' },
-          { status: 403 }
-        )
-      }
-    }
+    // All authenticated users can view orders (no access restriction for viewing)
 
     // Calculate statistics
     const allTasks = [...(order as any).tasks, ...(order as any).askingTasks]
@@ -210,6 +199,83 @@ export async function GET(
     console.error('Error fetching order details:', error)
     return NextResponse.json(
       { error: 'Failed to fetch order details' },
+      { status: 500 }
+    )
+  }
+}
+
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const currentUser = await getCurrentUser()
+    
+    // Only ADMIN can delete orders
+    if (!currentUser || currentUser.role !== UserRole.ADMIN) {
+      return NextResponse.json({ message: 'Unauthorized' }, { status: 403 })
+    }
+
+    const { id } = await params
+
+    // Get order details before deletion for audit log
+    const order = await prisma.order.findUnique({
+      where: { id },
+      include: {
+        orderType: {
+          select: {
+            name: true,
+          },
+        },
+        tasks: {
+          select: {
+            id: true,
+            title: true,
+          },
+        },
+        askingTasks: {
+          select: {
+            id: true,
+            title: true,
+          },
+        },
+      },
+    })
+
+    if (!order) {
+      return NextResponse.json({ message: 'Order not found' }, { status: 404 })
+    }
+
+    // Delete order (cascade will handle related records based on schema)
+    await prisma.order.delete({
+      where: { id },
+    })
+
+    // Create audit log
+    await createAuditLog({
+      performedBy: currentUser.id,
+      action: 'DELETE',
+      entityType: 'ORDER',
+      entityId: id,
+      oldValue: {
+        orderNumber: order.orderNumber,
+        customerName: order.customerName,
+        amount: order.amount,
+        orderType: order.orderType.name,
+        tasksCount: order.tasks.length,
+        askingTasksCount: order.askingTasks.length,
+      },
+      description: `Deleted order #${order.orderNumber} for ${order.customerName}`,
+    })
+
+    return NextResponse.json(
+      { message: 'Order deleted successfully' },
+      { status: 200 }
+    )
+  } catch (error) {
+    console.error('Error deleting order:', error)
+    return NextResponse.json(
+      { message: 'Failed to delete order' },
       { status: 500 }
     )
   }

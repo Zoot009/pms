@@ -25,9 +25,7 @@ export async function GET(request: NextRequest) {
     const search = searchParams.get('search') || ''
 
     // Build where condition
-    const whereCondition: any = {
-      createdById: user.id,
-    }
+    const whereCondition: any = {}
 
     // Status filter
     if (status !== 'ALL') {
