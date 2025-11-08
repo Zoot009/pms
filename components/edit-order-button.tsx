@@ -61,14 +61,6 @@ export function EditOrderButton({
       setIsSubmitting(true)
       
       // Validate required fields
-      if (!customerName.trim()) {
-        toast.error('Customer name is required')
-        return
-      }
-      if (!customerEmail.trim()) {
-        toast.error('Customer email is required')
-        return
-      }
       if (!amount || parseFloat(amount) <= 0) {
         toast.error('Valid amount is required')
         return
@@ -121,7 +113,7 @@ export function EditOrderButton({
               
               <div className="grid gap-4">
                 <div>
-                  <Label htmlFor="customerName">Customer Name *</Label>
+                  <Label htmlFor="customerName">Customer Name</Label>
                   <Input
                     id="customerName"
                     value={customerName}
@@ -131,7 +123,7 @@ export function EditOrderButton({
                 </div>
                 
                 <div>
-                  <Label htmlFor="customerEmail">Customer Email *</Label>
+                  <Label htmlFor="customerEmail">Customer Email</Label>
                   <Input
                     id="customerEmail"
                     type="email"
@@ -196,7 +188,7 @@ export function EditOrderButton({
             </Button>
             <Button 
               onClick={handleSave} 
-              disabled={isSubmitting || !customerName || !customerEmail || !amount}
+              disabled={isSubmitting || !amount}
             >
               {isSubmitting && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
               Save Changes

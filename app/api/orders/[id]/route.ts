@@ -299,12 +299,6 @@ export async function PATCH(
     const { customerName, customerEmail, customerPhone, amount, notes } = body
 
     // Validate required fields
-    if (!customerName?.trim()) {
-      return NextResponse.json({ message: 'Customer name is required' }, { status: 400 })
-    }
-    if (!customerEmail?.trim()) {
-      return NextResponse.json({ message: 'Customer email is required' }, { status: 400 })
-    }
     if (!amount || amount <= 0) {
       return NextResponse.json({ message: 'Valid amount is required' }, { status: 400 })
     }
@@ -330,8 +324,8 @@ export async function PATCH(
     const updatedOrder = await prisma.order.update({
       where: { id },
       data: {
-        customerName: customerName.trim(),
-        customerEmail: customerEmail.trim(),
+        customerName: customerName?.trim() || null,
+        customerEmail: customerEmail?.trim() || null,
         customerPhone: customerPhone?.trim() || null,
         amount: parseFloat(amount),
         notes: notes?.trim() || null,
@@ -340,13 +334,13 @@ export async function PATCH(
 
     // Create audit log
     const changes = []
-    if (currentOrder.customerName !== customerName.trim()) {
-      changes.push(`Customer Name: ${currentOrder.customerName} → ${customerName.trim()}`)
+    if (currentOrder.customerName !== (customerName?.trim() || null)) {
+      changes.push(`Customer Name: ${currentOrder.customerName || 'N/A'} → ${customerName?.trim() || 'N/A'}`)
     }
-    if (currentOrder.customerEmail !== customerEmail.trim()) {
-      changes.push(`Customer Email: ${currentOrder.customerEmail} → ${customerEmail.trim()}`)
+    if (currentOrder.customerEmail !== (customerEmail?.trim() || null)) {
+      changes.push(`Customer Email: ${currentOrder.customerEmail || 'N/A'} → ${customerEmail?.trim() || 'N/A'}`)
     }
-    if (currentOrder.customerPhone !== customerPhone?.trim()) {
+    if (currentOrder.customerPhone !== (customerPhone?.trim() || null)) {
       changes.push(`Customer Phone: ${currentOrder.customerPhone || 'N/A'} → ${customerPhone?.trim() || 'N/A'}`)
     }
     if (currentOrder.amount.toString() !== amount.toString()) {
@@ -370,8 +364,8 @@ export async function PATCH(
           notes: currentOrder.notes,
         },
         newValue: {
-          customerName: customerName.trim(),
-          customerEmail: customerEmail.trim(),
+          customerName: customerName?.trim() || null,
+          customerEmail: customerEmail?.trim() || null,
           customerPhone: customerPhone?.trim() || null,
           amount: amount.toString(),
           notes: notes?.trim() || null,
