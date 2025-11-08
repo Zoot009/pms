@@ -39,18 +39,18 @@ export function EditOrderButton({
   const [showDialog, setShowDialog] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
 
-  // Form States
-  const [customerName, setCustomerName] = useState(currentCustomerName)
-  const [customerEmail, setCustomerEmail] = useState(currentCustomerEmail)
-  const [customerPhone, setCustomerPhone] = useState(currentCustomerPhone)
+  // Form States - convert null to empty string for inputs
+  const [customerName, setCustomerName] = useState(currentCustomerName || '')
+  const [customerEmail, setCustomerEmail] = useState(currentCustomerEmail || '')
+  const [customerPhone, setCustomerPhone] = useState(currentCustomerPhone || '')
   const [amount, setAmount] = useState(currentAmount)
   const [notes, setNotes] = useState(currentNotes || '')
 
   const handleOpenDialog = () => {
-    // Reset form to current values when opening
-    setCustomerName(currentCustomerName)
-    setCustomerEmail(currentCustomerEmail)
-    setCustomerPhone(currentCustomerPhone)
+    // Reset form to current values when opening - convert null to empty string
+    setCustomerName(currentCustomerName || '')
+    setCustomerEmail(currentCustomerEmail || '')
+    setCustomerPhone(currentCustomerPhone || '')
     setAmount(currentAmount)
     setNotes(currentNotes || '')
     setShowDialog(true)
@@ -68,11 +68,11 @@ export function EditOrderButton({
 
       // Update order details
       await axios.patch(`/api/orders/${orderId}`, {
-        customerName: customerName.trim(),
-        customerEmail: customerEmail.trim(),
-        customerPhone: customerPhone.trim(),
+        customerName: customerName.trim() || null,
+        customerEmail: customerEmail.trim() || null,
+        customerPhone: customerPhone.trim() || null,
         amount: parseFloat(amount),
-        notes: notes.trim(),
+        notes: notes.trim() || null,
       })
 
       toast.success('Order updated successfully')
