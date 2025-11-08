@@ -131,8 +131,17 @@ export default function AskingTasksPage() {
       await axios.patch(`/api/asking-tasks/${taskId}/flag`, {
         isFlagged: !currentFlag,
       })
+      
+      // Update the task in the local state instead of refetching
+      setAskingTasks(prevTasks => 
+        prevTasks.map(task => 
+          task.id === taskId 
+            ? { ...task, isFlagged: !currentFlag }
+            : task
+        )
+      )
+      
       toast.success(currentFlag ? 'Task unflagged' : 'Task flagged as issue')
-      fetchAskingTasks()
     } catch (error) {
       console.error('Error toggling flag:', error)
       toast.error('Failed to update task')
@@ -144,14 +153,34 @@ export default function AskingTasksPage() {
 
     try {
       setIsSubmitting(true)
-      await axios.patch(`/api/asking-tasks/${selectedTask.id}/complete`, {
+      const response = await axios.patch(`/api/asking-tasks/${selectedTask.id}/complete`, {
         notes: completionNotes || undefined,
       })
+      
+      // Update the task in the local state instead of refetching
+      const updatedTask = response.data.askingTask
+      setAskingTasks(prevTasks => 
+        prevTasks.map(task => 
+          task.id === selectedTask.id 
+            ? { 
+                ...task, 
+                completedAt: updatedTask.completedAt, 
+                completedUser: updatedTask.completedUser 
+              }
+            : task
+        )
+      )
+      
+      // Keep the order expanded so user can see the updated task
+      setOpenOrders(prev => ({
+        ...prev,
+        [selectedTask.order.id]: true
+      }))
+      
       toast.success('Task marked as complete')
       setShowCompleteDialog(false)
       setSelectedTask(null)
       setCompletionNotes('')
-      fetchAskingTasks()
     } catch (error: any) {
       console.error('Error completing task:', error)
       toast.error(error.response?.data?.error || 'Failed to complete task')
@@ -171,7 +200,24 @@ export default function AskingTasksPage() {
   }
 
   const handleStageUpdate = () => {
-    fetchAskingTasks()
+    // Refetch only the updated task instead of all tasks
+    if (selectedTaskId) {
+      axios.get(`/api/asking-tasks/${selectedTaskId}`)
+        .then(response => {
+          setAskingTasks(prevTasks => 
+            prevTasks.map(task => 
+              task.id === selectedTaskId ? response.data : task
+            )
+          )
+        })
+        .catch(error => {
+          console.error('Error refreshing task:', error)
+          // If individual fetch fails, fall back to full refresh
+          fetchAskingTasks()
+        })
+    } else {
+      fetchAskingTasks()
+    }
   }
 
   // Group tasks by order
