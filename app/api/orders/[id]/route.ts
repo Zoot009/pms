@@ -211,8 +211,8 @@ export async function DELETE(
   try {
     const currentUser = await getCurrentUser()
     
-    // Only ADMIN can delete orders
-    if (!currentUser || currentUser.role !== UserRole.ADMIN) {
+    // Only ADMIN and ORDER_CREATOR can delete orders
+    if (!currentUser || (currentUser.role !== UserRole.ADMIN && currentUser.role !== UserRole.ORDER_CREATOR)) {
       return NextResponse.json({ message: 'Unauthorized' }, { status: 403 })
     }
 
@@ -276,6 +276,119 @@ export async function DELETE(
     console.error('Error deleting order:', error)
     return NextResponse.json(
       { message: 'Failed to delete order' },
+      { status: 500 }
+    )
+  }
+}
+
+export async function PATCH(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const currentUser = await getCurrentUser()
+    
+    // Only ADMIN, ORDER_CREATOR, and TEAM_LEADER can edit orders
+    if (!currentUser || !['ADMIN', 'ORDER_CREATOR', 'TEAM_LEADER'].includes(currentUser.role)) {
+      return NextResponse.json({ message: 'Unauthorized' }, { status: 403 })
+    }
+
+    const { id } = await params
+    const body = await request.json()
+
+    const { customerName, customerEmail, customerPhone, amount, notes } = body
+
+    // Validate required fields
+    if (!customerName?.trim()) {
+      return NextResponse.json({ message: 'Customer name is required' }, { status: 400 })
+    }
+    if (!customerEmail?.trim()) {
+      return NextResponse.json({ message: 'Customer email is required' }, { status: 400 })
+    }
+    if (!amount || amount <= 0) {
+      return NextResponse.json({ message: 'Valid amount is required' }, { status: 400 })
+    }
+
+    // Get current order data for audit log
+    const currentOrder = await prisma.order.findUnique({
+      where: { id },
+      select: {
+        orderNumber: true,
+        customerName: true,
+        customerEmail: true,
+        customerPhone: true,
+        amount: true,
+        notes: true,
+      },
+    })
+
+    if (!currentOrder) {
+      return NextResponse.json({ message: 'Order not found' }, { status: 404 })
+    }
+
+    // Update order
+    const updatedOrder = await prisma.order.update({
+      where: { id },
+      data: {
+        customerName: customerName.trim(),
+        customerEmail: customerEmail.trim(),
+        customerPhone: customerPhone?.trim() || null,
+        amount: parseFloat(amount),
+        notes: notes?.trim() || null,
+      },
+    })
+
+    // Create audit log
+    const changes = []
+    if (currentOrder.customerName !== customerName.trim()) {
+      changes.push(`Customer Name: ${currentOrder.customerName} → ${customerName.trim()}`)
+    }
+    if (currentOrder.customerEmail !== customerEmail.trim()) {
+      changes.push(`Customer Email: ${currentOrder.customerEmail} → ${customerEmail.trim()}`)
+    }
+    if (currentOrder.customerPhone !== customerPhone?.trim()) {
+      changes.push(`Customer Phone: ${currentOrder.customerPhone || 'N/A'} → ${customerPhone?.trim() || 'N/A'}`)
+    }
+    if (currentOrder.amount.toString() !== amount.toString()) {
+      changes.push(`Amount: $${currentOrder.amount} → $${amount}`)
+    }
+    if (currentOrder.notes !== (notes?.trim() || null)) {
+      changes.push(`Notes updated`)
+    }
+
+    if (changes.length > 0) {
+      await createAuditLog({
+        entityType: 'ORDER',
+        entityId: id,
+        action: 'UPDATE',
+        performedBy: currentUser.id,
+        oldValue: {
+          customerName: currentOrder.customerName,
+          customerEmail: currentOrder.customerEmail,
+          customerPhone: currentOrder.customerPhone,
+          amount: currentOrder.amount.toString(),
+          notes: currentOrder.notes,
+        },
+        newValue: {
+          customerName: customerName.trim(),
+          customerEmail: customerEmail.trim(),
+          customerPhone: customerPhone?.trim() || null,
+          amount: amount.toString(),
+          notes: notes?.trim() || null,
+        },
+        description: `Updated order #${currentOrder.orderNumber}: ${changes.join(', ')}`,
+        request,
+      })
+    }
+
+    return NextResponse.json(
+      { message: 'Order updated successfully', order: updatedOrder },
+      { status: 200 }
+    )
+  } catch (error) {
+    console.error('Error updating order:', error)
+    return NextResponse.json(
+      { message: 'Failed to update order' },
       { status: 500 }
     )
   }

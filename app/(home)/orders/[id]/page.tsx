@@ -10,8 +10,19 @@ import { Button } from '@/components/ui/button'
 import { Separator } from '@/components/ui/separator'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { StageDetailsModal } from '@/components/stage-details-modal'
-import { OrderActionButtons } from '@/components/order-action-buttons'
+import { EditOrderButton } from '@/components/edit-order-button'
+import { ExtendDeliveryButton } from '@/components/extend-delivery-button'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
 import {
   Loader2,
   ArrowLeft,
@@ -32,6 +43,8 @@ import {
   XCircle,
   PlayCircle,
   PauseCircle,
+  Trash2,
+  Settings,
 } from 'lucide-react'
 import { format, differenceInDays } from 'date-fns'
 import { toast } from 'sonner'
@@ -52,12 +65,15 @@ export default function OrderDetailPage({ params }: OrderDetailPageProps) {
   const [currentUser, setCurrentUser] = useState<any>(null)
   const [isTeamLeader, setIsTeamLeader] = useState(false)
   const [canEdit, setCanEdit] = useState(false)
+  const [canDelete, setCanDelete] = useState(false)
 
   // UI State
   const [showServiceTasks, setShowServiceTasks] = useState(true)
   const [showAskingTasks, setShowAskingTasks] = useState(true)
   const [showStageModal, setShowStageModal] = useState(false)
   const [selectedAskingTaskId, setSelectedAskingTaskId] = useState<string | null>(null)
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false)
+  const [isDeleting, setIsDeleting] = useState(false)
 
   useEffect(() => {
     fetchOrderDetails()
@@ -93,7 +109,7 @@ export default function OrderDetailPage({ params }: OrderDetailPageProps) {
       const user = userResponse.data.user
       
       // Check if user can edit orders
-      const isAdmin = user?.role === 'ADMIN'
+      const isAdminUser = user?.role === 'ADMIN'
       const isOrderCreator = user?.role === 'ORDER_CREATOR'
       
       // Check if user is a team leader
@@ -102,11 +118,38 @@ export default function OrderDetailPage({ params }: OrderDetailPageProps) {
       setIsTeamLeader(isTeamLeaderRole)
       
       // User can edit if they are admin, order creator, or team leader
-      setCanEdit(isAdmin || isOrderCreator || isTeamLeaderRole)
+      setCanEdit(isAdminUser || isOrderCreator || isTeamLeaderRole)
+      
+      // User can delete if they are admin or order creator
+      setCanDelete(isAdminUser || isOrderCreator)
     } catch (error) {
       console.error('Error checking user role:', error)
       setIsTeamLeader(false)
       setCanEdit(false)
+      setCanDelete(false)
+    }
+  }
+
+  const handleDeleteOrder = async () => {
+    try {
+      setIsDeleting(true)
+      await axios.delete(`/api/orders/${orderId}`)
+      toast.success('Order deleted successfully')
+      
+      // Redirect based on user role
+      if (currentUser?.role === 'ADMIN') {
+        router.push('/admin/orders')
+      } else if (currentUser?.role === 'ORDER_CREATOR') {
+        router.push('/order-creator/orders')
+      } else {
+        router.push('/orders')
+      }
+    } catch (error: any) {
+      console.error('Error deleting order:', error)
+      toast.error(error.response?.data?.message || 'Failed to delete order')
+    } finally {
+      setIsDeleting(false)
+      setShowDeleteDialog(false)
     }
   }
 
@@ -192,16 +235,36 @@ export default function OrderDetailPage({ params }: OrderDetailPageProps) {
             <p className="text-muted-foreground">{order.orderType.name}</p>
           </div>
         </div>
-        {canEdit && (
-          <OrderActionButtons
-            orderId={orderId}
-            currentDeliveryDate={order.deliveryDate}
-            currentAmount={order.amount.toString()}
-            currentNotes={order.notes}
-            onUpdate={fetchOrderDetails}
-            variant="default"
-          />
-        )}
+        <div className="flex items-center gap-2">
+          {canEdit && (
+            <>
+              <EditOrderButton
+                orderId={orderId}
+                currentCustomerName={order.customerName}
+                currentCustomerEmail={order.customerEmail}
+                currentCustomerPhone={order.customerPhone || ''}
+                currentAmount={order.amount.toString()}
+                currentNotes={order.notes}
+                onUpdate={fetchOrderDetails}
+              />
+              <ExtendDeliveryButton
+                orderId={orderId}
+                currentDeliveryDate={order.deliveryDate}
+                onUpdate={fetchOrderDetails}
+              />
+              {canDelete && (
+                <Button
+                  variant="destructive"
+                  onClick={() => setShowDeleteDialog(true)}
+                  disabled={isDeleting}
+                >
+                  <Trash2 className="h-4 w-4 mr-2" />
+                  Delete Order
+                </Button>
+              )}
+            </>
+          )}
+        </div>
       </div>
 
       {/* Order Information Card */}
@@ -699,6 +762,43 @@ export default function OrderDetailPage({ params }: OrderDetailPageProps) {
           onUpdate={fetchOrderDetails}
         />
       )}
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently delete order <strong>#{order.orderNumber}</strong> for{' '}
+              <strong>{order.customerName}</strong>.
+              <br />
+              <br />
+              This action cannot be undone. All associated tasks, asking tasks, and data will be
+              permanently removed from the system.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteOrder}
+              disabled={isDeleting}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {isDeleting ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Deleting...
+                </>
+              ) : (
+                <>
+                  <Trash2 className="mr-2 h-4 w-4" />
+                  Delete Order
+                </>
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }
