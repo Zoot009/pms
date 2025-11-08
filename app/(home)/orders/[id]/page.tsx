@@ -282,14 +282,14 @@ export default function OrderDetailPage({ params }: OrderDetailPageProps) {
                 <User className="h-4 w-4" />
                 Customer Name
               </div>
-              <div className="font-medium">{order.customerName}</div>
+              <div className="font-medium">{order.customerName || '-'}</div>
             </div>
             <div>
               <div className="flex items-center gap-2 text-sm text-muted-foreground mb-1">
                 <FileText className="h-4 w-4" />
                 Customer Email
               </div>
-              <div className="font-medium">{order.customerEmail}</div>
+              <div className="font-medium">{order.customerEmail || '-'}</div>
             </div>
             <div>
               <div className="flex items-center gap-2 text-sm text-muted-foreground mb-1">
@@ -769,8 +769,13 @@ export default function OrderDetailPage({ params }: OrderDetailPageProps) {
           <AlertDialogHeader>
             <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
             <AlertDialogDescription>
-              This will permanently delete order <strong>#{order.orderNumber}</strong> for{' '}
-              <strong>{order.customerName}</strong>.
+              This will permanently delete order <strong>#{order.orderNumber}</strong>
+              {order.customerName && (
+                <>
+                  {' '}for <strong>{order.customerName}</strong>
+                </>
+              )}
+              .
               <br />
               <br />
               This action cannot be undone. All associated tasks, asking tasks, and data will be
