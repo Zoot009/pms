@@ -14,6 +14,8 @@ export async function GET(request: NextRequest) {
     const flagged = searchParams.get('flagged') || 'all' // all, flagged, unflagged
     const stage = searchParams.get('stage') || 'all' // all, ASKED, SHARED, VERIFIED, INFORMED_TEAM
     const search = searchParams.get('search') || ''
+    const page = parseInt(searchParams.get('page') || '1')
+    const limit = parseInt(searchParams.get('limit') || '20')
 
     // Build where condition
     const whereCondition: any = {}
@@ -46,6 +48,11 @@ export async function GET(request: NextRequest) {
         { order: { customerName: { contains: search, mode: 'insensitive' } } },
       ]
     }
+
+    // Get total count for pagination
+    const totalCount = await prisma.askingTask.count({
+      where: whereCondition,
+    })
 
     const askingTasks = await prisma.askingTask.findMany({
       where: whereCondition,
@@ -99,9 +106,17 @@ export async function GET(request: NextRequest) {
         { deadline: 'asc' },
         { createdAt: 'desc' },
       ],
+      skip: (page - 1) * limit,
+      take: limit,
     })
 
-    return NextResponse.json({ askingTasks })
+    return NextResponse.json({ 
+      askingTasks,
+      hasMore: (page * limit) < totalCount,
+      totalCount,
+      page,
+      limit,
+    })
   } catch (error) {
     console.error('Error fetching asking tasks:', error)
     return NextResponse.json(

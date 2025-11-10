@@ -57,6 +57,7 @@ export default function MyTasksPage() {
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'completed'>('active')
   const [priorityFilter, setPriorityFilter] = useState('all')
   const [sortBy, setSortBy] = useState('default')
+  const [daysLeftFilter, setDaysLeftFilter] = useState('all')
   const [startingTaskId, setStartingTaskId] = useState<string | null>(null)
   const [completingTaskId, setCompletingTaskId] = useState<string | null>(null)
 
@@ -81,6 +82,36 @@ export default function MyTasksPage() {
       setIsLoading(false)
     }
   }
+
+  // Filter orders by days left until delivery
+  const filterOrdersByDaysLeft = (orders: Order[]) => {
+    if (daysLeftFilter === 'all') return orders
+
+    return orders.filter(order => {
+      if (!order.deliveryDate) return false
+      
+      const daysLeft = differenceInDays(new Date(order.deliveryDate), new Date())
+      
+      switch (daysLeftFilter) {
+        case 'overdue':
+          return daysLeft < 0
+        case 'today':
+          return daysLeft === 0
+        case '1-3':
+          return daysLeft >= 1 && daysLeft <= 3
+        case '4-7':
+          return daysLeft >= 4 && daysLeft <= 7
+        case '8-14':
+          return daysLeft >= 8 && daysLeft <= 14
+        case '15+':
+          return daysLeft >= 15
+        default:
+          return true
+      }
+    })
+  }
+
+  const filteredOrders = filterOrdersByDaysLeft(orders)
 
   const handleStartTask = async (taskId: string) => {
     try {
@@ -166,6 +197,50 @@ export default function MyTasksPage() {
     return null
   }
 
+  const getDaysLeftBadge = (deliveryDate: string | null) => {
+    if (!deliveryDate) return null
+
+    const daysLeft = differenceInDays(new Date(deliveryDate), new Date())
+
+    if (daysLeft < 0) {
+      return (
+        <Badge variant="destructive" className="text-xs">
+          Overdue by {Math.abs(daysLeft)} days
+        </Badge>
+      )
+    }
+
+    if (daysLeft === 0) {
+      return (
+        <Badge variant="destructive" className="text-xs">
+          Due Today
+        </Badge>
+      )
+    }
+
+    if (daysLeft <= 3) {
+      return (
+        <Badge variant="secondary" className="text-xs bg-amber-500 text-white">
+          {daysLeft} {daysLeft === 1 ? 'day' : 'days'} left
+        </Badge>
+      )
+    }
+
+    if (daysLeft <= 7) {
+      return (
+        <Badge variant="secondary" className="text-xs">
+          {daysLeft} days left
+        </Badge>
+      )
+    }
+
+    return (
+      <Badge variant="outline" className="text-xs">
+        {daysLeft} days left
+      </Badge>
+    )
+  }
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-screen">
@@ -184,6 +259,62 @@ export default function MyTasksPage() {
       </div>
 
       {/* Filters */}
+      <div className="flex flex-col sm:flex-row gap-4">
+        {/* Days Left Filter Pills */}
+        <div className="flex items-center gap-2 flex-wrap">
+          <Button
+            variant={daysLeftFilter === 'all' ? 'default' : 'outline'}
+            size="sm"
+            onClick={() => setDaysLeftFilter('all')}
+          >
+            All Orders
+          </Button>
+          <Button
+            variant={daysLeftFilter === 'overdue' ? 'default' : 'outline'}
+            size="sm"
+            onClick={() => setDaysLeftFilter('overdue')}
+          >
+            Overdue
+          </Button>
+          <Button
+            variant={daysLeftFilter === 'today' ? 'default' : 'outline'}
+            size="sm"
+            onClick={() => setDaysLeftFilter('today')}
+          >
+            Due Today
+          </Button>
+          <Button
+            variant={daysLeftFilter === '1-3' ? 'default' : 'outline'}
+            size="sm"
+            onClick={() => setDaysLeftFilter('1-3')}
+          >
+            1-3 Days
+          </Button>
+          <Button
+            variant={daysLeftFilter === '4-7' ? 'default' : 'outline'}
+            size="sm"
+            onClick={() => setDaysLeftFilter('4-7')}
+          >
+            4-7 Days
+          </Button>
+          <Button
+            variant={daysLeftFilter === '8-14' ? 'default' : 'outline'}
+            size="sm"
+            onClick={() => setDaysLeftFilter('8-14')}
+          >
+            8-14 Days
+          </Button>
+          <Button
+            variant={daysLeftFilter === '15+' ? 'default' : 'outline'}
+            size="sm"
+            onClick={() => setDaysLeftFilter('15+')}
+          >
+            15+ Days
+          </Button>
+        </div>
+      </div>
+
+      {/* Status, Priority, and Sort Filters */}
       <div className="flex flex-col sm:flex-row gap-4">
         <Tabs value={statusFilter} onValueChange={(val) => setStatusFilter(val as any)}>
           <TabsList>
@@ -221,7 +352,7 @@ export default function MyTasksPage() {
       </div>
 
       {/* Orders and Tasks */}
-      {orders.length === 0 ? (
+      {filteredOrders.length === 0 ? (
         <Card>
           <CardContent className="flex items-center justify-center py-12">
             <p className="text-muted-foreground">No tasks found</p>
@@ -229,7 +360,7 @@ export default function MyTasksPage() {
         </Card>
       ) : (
         <div className="space-y-6">
-          {orders.map((order) => (
+          {filteredOrders.map((order) => (
             <Card key={order.orderId}>
               <CardHeader>
                 <div className="flex items-start justify-between">
@@ -237,10 +368,11 @@ export default function MyTasksPage() {
                     <CardTitle className="flex items-center gap-2">
                       Order #{order.orderNumber}
                       <Badge variant="outline">{order.orderTypeName}</Badge>
+                      {getDaysLeftBadge(order.deliveryDate)}
                     </CardTitle>
                     <CardDescription>
                       <div className="flex flex-wrap gap-4 mt-2">
-                        <span>Customer: {order.customerName}</span>
+                        <span>Customer: {order.customerName || 'N/A'}</span>
                         {order.deliveryDate && (
                           <span className="flex items-center gap-1">
                             <Calendar className="h-3 w-3" />

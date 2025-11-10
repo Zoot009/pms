@@ -83,6 +83,9 @@ interface AskingTask {
 export default function AskingTasksPage() {
   const [askingTasks, setAskingTasks] = useState<AskingTask[]>([])
   const [isLoading, setIsLoading] = useState(true)
+  const [isLoadingMore, setIsLoadingMore] = useState(false)
+  const [hasMore, setHasMore] = useState(true)
+  const [page, setPage] = useState(1)
   const [statusFilter, setStatusFilter] = useState('all')
   const [flaggedFilter, setFlaggedFilter] = useState('all')
   const [stageFilter, setStageFilter] = useState('all')
@@ -100,30 +103,75 @@ export default function AskingTasksPage() {
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null)
 
   useEffect(() => {
-    fetchAskingTasks()
+    setPage(1)
+    setAskingTasks([])
+    setHasMore(true)
+    fetchAskingTasks(1, true)
   }, [statusFilter, flaggedFilter, stageFilter])
 
-  const fetchAskingTasks = async () => {
+  useEffect(() => {
+    const handleScroll = () => {
+      if (
+        window.innerHeight + document.documentElement.scrollTop
+        >= document.documentElement.offsetHeight - 1000 &&
+        !isLoadingMore &&
+        hasMore
+      ) {
+        loadMoreTasks()
+      }
+    }
+
+    window.addEventListener('scroll', handleScroll)
+    return () => window.removeEventListener('scroll', handleScroll)
+  }, [isLoadingMore, hasMore, page])
+
+  const fetchAskingTasks = async (pageNum: number = 1, reset: boolean = false) => {
     try {
-      setIsLoading(true)
+      if (reset) {
+        setIsLoading(true)
+      } else {
+        setIsLoadingMore(true)
+      }
+      
       const params = new URLSearchParams({
         status: statusFilter,
         flagged: flaggedFilter,
         stage: stageFilter,
         search: searchQuery,
+        page: pageNum.toString(),
+        limit: '20'
       })
+      
       const response = await axios.get(`/api/asking-tasks?${params}`)
-      setAskingTasks(response.data.askingTasks)
+      
+      if (reset) {
+        setAskingTasks(response.data.askingTasks)
+      } else {
+        setAskingTasks(prev => [...prev, ...response.data.askingTasks])
+      }
+      
+      setHasMore(response.data.hasMore)
+      setPage(pageNum)
     } catch (error) {
       console.error('Error fetching asking tasks:', error)
       toast.error('Failed to load asking tasks')
     } finally {
       setIsLoading(false)
+      setIsLoadingMore(false)
+    }
+  }
+
+  const loadMoreTasks = () => {
+    if (!isLoadingMore && hasMore) {
+      fetchAskingTasks(page + 1, false)
     }
   }
 
   const handleSearch = () => {
-    fetchAskingTasks()
+    setPage(1)
+    setAskingTasks([])
+    setHasMore(true)
+    fetchAskingTasks(1, true)
   }
 
   const handleToggleFlag = async (taskId: string, currentFlag: boolean) => {
@@ -514,6 +562,21 @@ export default function AskingTasksPage() {
               </Card>
             )
           })}
+        </div>
+      )}
+
+      {/* Loading More Indicator */}
+      {isLoadingMore && (
+        <div className="flex items-center justify-center py-8">
+          <Loader2 className="h-6 w-6 animate-spin mr-2" />
+          <span className="text-muted-foreground">Loading more tasks...</span>
+        </div>
+      )}
+
+      {/* No More Items Indicator */}
+      {!hasMore && askingTasks.length > 0 && (
+        <div className="flex items-center justify-center py-8">
+          <span className="text-muted-foreground">No more tasks to load</span>
         </div>
       )}
 

@@ -197,5 +197,4 @@ export function EditOrderButton({
         </DialogContent>
       </Dialog>
     </>
-  )
-}
+  )}

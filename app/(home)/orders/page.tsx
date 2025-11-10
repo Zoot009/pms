@@ -8,13 +8,7 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
+import { Select,SelectContent,SelectItem,SelectTrigger,SelectValue } from '@/components/ui/select'
 import {
   Loader2,
   Search,
@@ -79,6 +73,9 @@ export default function OrdersPage() {
   const [orders, setOrders] = useState<Order[]>([])
   const [groupedOrders, setGroupedOrders] = useState<GroupedOrders>({})
   const [isLoading, setIsLoading] = useState(true)
+  const [isLoadingMore, setIsLoadingMore] = useState(false)
+  const [hasMore, setHasMore] = useState(true)
+  const [page, setPage] = useState(1)
   const [statusFilter, setStatusFilter] = useState('ALL')
   const [searchQuery, setSearchQuery] = useState('')
   const [viewMode, setViewMode] = useState<'grouped' | 'list'>('list')
@@ -87,9 +84,29 @@ export default function OrdersPage() {
   const [canEdit, setCanEdit] = useState(false)
 
   useEffect(() => {
-    fetchOrders()
+    setPage(1)
+    setOrders([])
+    setGroupedOrders({})
+    setHasMore(true)
+    fetchOrders(1, true)
     checkUserRole()
   }, [statusFilter, dueDateFilter])
+
+  useEffect(() => {
+    const handleScroll = () => {
+      if (
+        window.innerHeight + document.documentElement.scrollTop
+        >= document.documentElement.offsetHeight - 1000 &&
+        !isLoadingMore &&
+        hasMore
+      ) {
+        loadMoreOrders()
+      }
+    }
+
+    window.addEventListener('scroll', handleScroll)
+    return () => window.removeEventListener('scroll', handleScroll)
+  }, [isLoadingMore, hasMore, page])
 
   const checkUserRole = async () => {
     try {
@@ -116,12 +133,19 @@ export default function OrdersPage() {
     }
   }
 
-  const fetchOrders = async () => {
+  const fetchOrders = async (pageNum: number = 1, reset: boolean = false) => {
     try {
-      setIsLoading(true)
+      if (reset) {
+        setIsLoading(true)
+      } else {
+        setIsLoadingMore(true)
+      }
+      
       const params = new URLSearchParams({
         status: statusFilter,
         search: searchQuery,
+        page: pageNum.toString(),
+        limit: '20'
       })
       
       // Add due date filter if not "all"
@@ -130,18 +154,49 @@ export default function OrdersPage() {
       }
       
       const response = await axios.get(`/api/orders?${params}`)
-      setOrders(response.data.orders)
-      setGroupedOrders(response.data.groupedByDate)
+      
+      if (reset) {
+        setOrders(response.data.orders)
+        setGroupedOrders(response.data.groupedByDate)
+      } else {
+        setOrders(prev => [...prev, ...response.data.orders])
+        // For grouped orders, merge the new data
+        setGroupedOrders(prev => {
+          const newGrouped = { ...prev }
+          Object.entries(response.data.groupedByDate).forEach(([date, dateOrders]) => {
+            if (newGrouped[date]) {
+              newGrouped[date] = [...newGrouped[date], ...dateOrders as Order[]]
+            } else {
+              newGrouped[date] = dateOrders as Order[]
+            }
+          })
+          return newGrouped
+        })
+      }
+      
+      setHasMore(response.data.hasMore)
+      setPage(pageNum)
     } catch (error) {
       console.error('Error fetching orders:', error)
       toast.error('Failed to load orders')
     } finally {
       setIsLoading(false)
+      setIsLoadingMore(false)
+    }
+  }
+
+  const loadMoreOrders = () => {
+    if (!isLoadingMore && hasMore) {
+      fetchOrders(page + 1, false)
     }
   }
 
   const handleSearch = () => {
-    fetchOrders()
+    setPage(1)
+    setOrders([])
+    setGroupedOrders({})
+    setHasMore(true)
+    fetchOrders(1, true)
   }
 
   const getStatusBadge = (status: string) => {
@@ -343,8 +398,7 @@ export default function OrdersPage() {
           </Button>
         </CardContent>
       </Card>
-    )
-  }
+    )}
   
   if (isLoading) {
     return (
@@ -528,6 +582,20 @@ export default function OrdersPage() {
           )}
         </div>
       )}
+
+      {/* Loading More Indicator */}
+      {isLoadingMore && (
+        <div className="flex items-center justify-center py-8">
+          <Loader2 className="h-6 w-6 animate-spin mr-2" />
+          <span className="text-muted-foreground">Loading more orders...</span>
+        </div>
+      )}
+
+      {/* No More Items Indicator */}
+      {!hasMore && orders.length > 0 && (
+        <div className="flex items-center justify-center py-8">
+          <span className="text-muted-foreground">No more orders to load</span>
+        </div>
+      )}
     </div>
-  )
-}
+  )}

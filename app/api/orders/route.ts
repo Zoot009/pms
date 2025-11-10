@@ -17,6 +17,8 @@ export async function GET(req: NextRequest) {
     const deliveryDate = searchParams.get('deliveryDate')
     const assignedToMe = searchParams.get('assignedToMe') === 'true'
     const daysLeft = searchParams.get('daysLeft')
+    const page = parseInt(searchParams.get('page') || '1')
+    const limit = parseInt(searchParams.get('limit') || '20')
 
     const whereCondition: any = {}
 
@@ -97,6 +99,11 @@ export async function GET(req: NextRequest) {
       }
     }
 
+    // Get total count for pagination
+    const totalCount = await prisma.order.count({
+      where: whereCondition,
+    })
+
     const orders = await prisma.order.findMany({
       where: whereCondition,
       include: {
@@ -151,6 +158,8 @@ export async function GET(req: NextRequest) {
         },
       },
       orderBy: [{ deliveryDate: 'asc' }, { createdAt: 'desc' }],
+      skip: (page - 1) * limit,
+      take: limit,
     })
 
     // Calculate statistics for each order
@@ -229,6 +238,10 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ 
       orders: ordersWithStats,
       groupedByDate: groupedOrders,
+      hasMore: (page * limit) < totalCount,
+      totalCount,
+      page,
+      limit,
     })
   } catch (error) {
     console.error('Error fetching orders:', error)
