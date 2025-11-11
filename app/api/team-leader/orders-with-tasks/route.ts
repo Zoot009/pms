@@ -2,8 +2,11 @@ import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import prisma from '@/lib/prisma'
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
+    const { searchParams } = new URL(request.url)
+    const orderId = searchParams.get('orderId')
+    
     const supabase = await createClient()
     const {
       data: { user },
@@ -31,7 +34,12 @@ export async function GET() {
     }
 
     // Get all orders with tasks for services that belong to the team leader's teams
+    // Exclude delivered (COMPLETED) orders
     const orders = await prisma.order.findMany({
+      where: {
+        ...(orderId && { id: orderId }),
+        status: { not: 'COMPLETED' }
+      },
       include: {
         orderType: {
           select: {
@@ -82,7 +90,7 @@ export async function GET() {
     })
 
     // Filter out orders with no tasks (after the task filtering)
-    const ordersWithTasks = orders.filter((order: { tasks: any[] }) => order.tasks.length > 0)
+    const ordersWithTasks = orders.filter((order) => order.tasks.length > 0)
 
     return NextResponse.json({ orders: ordersWithTasks })
   } catch (error) {

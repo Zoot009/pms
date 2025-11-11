@@ -188,19 +188,24 @@ export async function POST(req: NextRequest) {
       let servicesToCreate: any[] = orderType.services
 
       if (isCustomized && customServiceIds && Array.isArray(customServiceIds)) {
-        // Fetch the custom services
-        const customServices = await tx.service.findMany({
-          where: {
-            id: { in: customServiceIds },
-            isActive: true,
-          },
-        })
+        // Filter out null/undefined values from customServiceIds
+        const validServiceIds = customServiceIds.filter(id => id !== null && id !== undefined && id !== '')
+        
+        if (validServiceIds.length > 0) {
+          // Fetch the custom services
+          const customServices = await tx.service.findMany({
+            where: {
+              id: { in: validServiceIds },
+              isActive: true,
+            },
+          })
 
-        // Map to match the structure expected below
-        servicesToCreate = customServices.map(s => ({
-          serviceId: s.id,
-          service: s,
-        }))
+          // Map to match the structure expected below
+          servicesToCreate = customServices.map(s => ({
+            serviceId: s.id,
+            service: s,
+          }))
+        }
       }
 
       // Create OrderService records for each service

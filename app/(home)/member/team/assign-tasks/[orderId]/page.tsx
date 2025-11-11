@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import axios from 'axios'
-import { format } from 'date-fns'
+import { format, parseISO } from 'date-fns'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import {
@@ -72,11 +72,36 @@ interface Order {
   customerName: string
   orderDate: string
   deliveryDate: string
+  deliveryTime: string | null
   folderLink: string | null
   orderType: {
     name: string
   }
   tasks: Task[]
+}
+
+// Helper function to properly parse datetime strings
+const parseDateTime = (dateString: string) => {
+  // Parse the ISO string properly - parseISO handles timezone conversion automatically
+  return parseISO(dateString)
+}
+
+// Helper function to combine delivery date and time
+const getFullDeliveryDateTime = (deliveryDate: string, deliveryTime: string | null) => {
+  if (!deliveryTime) {
+    // If no delivery time is specified, just return the date
+    return parseDateTime(deliveryDate)
+  }
+  
+  // Parse the date and create a new date with the specified time
+  const date = parseDateTime(deliveryDate)
+  const [hours, minutes] = deliveryTime.split(':').map(Number)
+  
+  // Create a new date with the correct time
+  const fullDateTime = new Date(date)
+  fullDateTime.setHours(hours, minutes, 0, 0)
+  
+  return fullDateTime
 }
 
 export default function OrderDetailPage() {
@@ -228,14 +253,14 @@ export default function OrderDetailPage() {
     )
   }
 
-  const getMaxDeadline = (deliveryDate: string) => {
-    const deliveryDateTime = new Date(deliveryDate)
+  const getMaxDeadline = (deliveryDate: string, deliveryTime: string | null) => {
+    const deliveryDateTime = getFullDeliveryDateTime(deliveryDate, deliveryTime)
     deliveryDateTime.setMinutes(deliveryDateTime.getMinutes() - 1)
     return format(deliveryDateTime, "yyyy-MM-dd'T'HH:mm")
   }
 
   const getMinDeadline = (orderDate: string) => {
-    const orderDateTime = new Date(orderDate)
+    const orderDateTime = parseDateTime(orderDate)
     return format(orderDateTime, "yyyy-MM-dd'T'HH:mm")
   }
 
@@ -265,7 +290,7 @@ export default function OrderDetailPage() {
   }
 
   const daysLeft = Math.ceil(
-    (new Date(order.deliveryDate).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24)
+    (getFullDeliveryDateTime(order.deliveryDate, order.deliveryTime).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24)
   )
 
   return (
@@ -331,13 +356,13 @@ export default function OrderDetailPage() {
               <div>
                 <div className="text-sm font-medium text-muted-foreground mb-1">Order Date</div>
                 <div className="text-base font-medium">
-                  {format(new Date(order.orderDate), 'MMM d, yyyy')}
+                  {format(parseDateTime(order.orderDate), 'MMM d, yyyy')}
                 </div>
               </div>
               <div>
                 <div className="text-sm font-medium text-muted-foreground mb-1">Delivery Date</div>
                 <div className="text-base font-medium">
-                  {format(new Date(order.deliveryDate), 'MMM d, yyyy, hh:mm a')}
+                  {format(getFullDeliveryDateTime(order.deliveryDate, order.deliveryTime), 'MMM d, yyyy, h:mm a')}
                 </div>
               </div>
             </div>
@@ -408,7 +433,7 @@ export default function OrderDetailPage() {
                       {task.deadline && (
                         <div className="flex items-center gap-2 text-sm">
                           <Calendar className="h-4 w-4" />
-                          <span>Deadline: {format(new Date(task.deadline), 'MMM d, yyyy, hh:mm a')}</span>
+                          <span>Deadline: {format(parseDateTime(task.deadline), 'MMM d, yyyy, h:mm a')}</span>
                         </div>
                       )}
                       {task.notes && (
@@ -468,7 +493,7 @@ export default function OrderDetailPage() {
                       {task.deadline && (
                         <div className="flex items-center gap-2 text-sm">
                           <Calendar className="h-4 w-4" />
-                          <span>Deadline: {format(new Date(task.deadline), 'MMM d, yyyy, hh:mm a')}</span>
+                          <span>Deadline: {format(parseDateTime(task.deadline), 'MMM d, yyyy, h:mm a')}</span>
                         </div>
                       )}
                     </div>
@@ -500,7 +525,7 @@ export default function OrderDetailPage() {
                 <div className="flex items-center gap-2 text-sm">
                   <AlertCircle className="h-4 w-4 text-orange-500" />
                   <span>
-                    Delivery: {format(new Date(order.deliveryDate), 'MMM d, yyyy, hh:mm a')}
+                    Delivery: {format(getFullDeliveryDateTime(order.deliveryDate, order.deliveryTime), 'MMM d, yyyy, h:mm a')}
                   </span>
                 </div>
               </div>
@@ -548,7 +573,7 @@ export default function OrderDetailPage() {
                     setAssignmentData({ ...assignmentData, deadline: e.target.value })
                   }
                   min={getMinDeadline(order.orderDate)}
-                  max={getMaxDeadline(order.deliveryDate)}
+                  max={getMaxDeadline(order.deliveryDate, order.deliveryTime)}
                   className="mt-1"
                 />
                 <p className="text-xs text-muted-foreground mt-1">

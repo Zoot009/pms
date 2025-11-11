@@ -41,6 +41,7 @@ export async function POST(
         order: {
           select: {
             deliveryDate: true,
+            deliveryTime: true,
             folderLink: true,
           },
         },
@@ -61,13 +62,36 @@ export async function POST(
 
     // Check if deadline is before delivery date and time
     const deadlineDate = new Date(deadline)
-    const deliveryDate = new Date(task.order.deliveryDate)
+    
+    // Combine delivery date and time for accurate comparison
+    let deliveryDateTime = new Date(task.order.deliveryDate)
+    if (task.order.deliveryTime) {
+      const [hours, minutes] = task.order.deliveryTime.split(':').map(Number)
+      deliveryDateTime.setHours(hours, minutes, 0, 0)
+    }
     
     // Allow same day but must be before delivery time
-    if (deadlineDate >= deliveryDate) {
+    if (deadlineDate >= deliveryDateTime) {
+      const deadlineFormatted = deadlineDate.toLocaleString('en-IN', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: true
+      })
+      const deliveryFormatted = deliveryDateTime.toLocaleString('en-IN', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: true
+      })
+      
       return NextResponse.json(
         { 
-          message: `Deadline must be before the order delivery time. Deadline: ${deadlineDate.toISOString()}, Delivery: ${deliveryDate.toISOString()}` 
+          message: `Deadline must be before the order delivery time. Deadline: ${deadlineFormatted}, Delivery: ${deliveryFormatted}` 
         },
         { status: 400 }
       )

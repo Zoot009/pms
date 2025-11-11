@@ -80,7 +80,7 @@ interface Order {
   id: string
   orderNumber: string
   customerName: string
-  customerEmail: string
+  customerEmail: string | null
   customerPhone: string
   amount: string
   orderDate: string
@@ -167,7 +167,7 @@ export default function DeliveryPage() {
       filtered = filtered.filter(order =>
         order.orderNumber.toLowerCase().includes(query) ||
         order.customerName.toLowerCase().includes(query) ||
-        order.customerEmail.toLowerCase().includes(query)
+        (order.customerEmail && order.customerEmail.toLowerCase().includes(query))
       )
     }
 
@@ -424,7 +424,7 @@ export default function DeliveryPage() {
           <div className="grid grid-cols-2 gap-3 pb-3 border-b">
             <div>
               <p className="text-xs text-muted-foreground">Customer Email</p>
-              <p className="text-sm font-medium truncate">{order.customerEmail}</p>
+              <p className="text-sm font-medium truncate">{order.customerEmail || 'Not provided'}</p>
             </div>
             <div>
               <p className="text-xs text-muted-foreground">Phone</p>
@@ -683,7 +683,7 @@ export default function DeliveryPage() {
                 </div>
                 <div className="text-sm">
                   <p className="font-medium">{selectedOrder.customerName}</p>
-                  <p className="text-muted-foreground">{selectedOrder.customerEmail}</p>
+                  <p className="text-muted-foreground">{selectedOrder.customerEmail || 'No email provided'}</p>
                 </div>
               </div>
 
