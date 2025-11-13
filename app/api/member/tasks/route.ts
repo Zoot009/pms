@@ -15,7 +15,7 @@ export async function GET(request: NextRequest) {
 
     // Get query parameters
     const searchParams = request.nextUrl.searchParams
-    const statusFilter = searchParams.get('status') || 'all' // all, active, completed
+    const statusFilter = searchParams.get('status') || 'all' // all, active, paused, completed
     const priorityFilter = searchParams.get('priority') || 'all' // all, high, medium, low, urgent
     const sortBy = searchParams.get('sortBy') || 'default' // default, deadline, priority, orderDate, status
 
@@ -29,6 +29,8 @@ export async function GET(request: NextRequest) {
       where.status = {
         in: ['ASSIGNED', 'IN_PROGRESS'],
       }
+    } else if (statusFilter === 'paused') {
+      where.status = 'PAUSED'
     } else if (statusFilter === 'completed') {
       where.status = 'COMPLETED'
     }

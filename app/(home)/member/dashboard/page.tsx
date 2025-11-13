@@ -29,6 +29,7 @@ type TaskPriority = 'LOW' | 'MEDIUM' | 'HIGH' | 'URGENT'
 interface DashboardStats {
   assignedCount: number
   inProgressCount: number
+  pausedCount: number
   completedTodayCount: number
   overdueCount: number
 }
@@ -55,17 +56,20 @@ interface DashboardData {
 const defaultStats: DashboardStats = {
   assignedCount: 0,
   inProgressCount: 0,
+  pausedCount: 0,
   completedTodayCount: 0,
   overdueCount: 0,
 }
 
 const getStatusBadge = (status: TaskStatus) => {
   const variants: Record<
-    TaskStatus,
+    string,
     { label: string; variant: 'default' | 'secondary' | 'outline' | 'destructive' }
   > = {
+    NOT_ASSIGNED: { label: 'NOT ASSIGNED', variant: 'secondary' },
     ASSIGNED: { label: 'NOT STARTED', variant: 'secondary' },
     IN_PROGRESS: { label: 'IN PROGRESS', variant: 'default' },
+    PAUSED: { label: 'PAUSED', variant: 'destructive' },
     COMPLETED: { label: 'COMPLETED', variant: 'outline' },
     OVERDUE: { label: 'OVERDUE', variant: 'destructive' },
   }
@@ -119,6 +123,7 @@ export default function MemberDashboard(): JSX.Element {
         stats: {
           assignedCount: 5,
           inProgressCount: 3,
+          pausedCount: 2,
           completedTodayCount: 2,
           overdueCount: 1,
           totalTasks: 11,
@@ -193,6 +198,12 @@ export default function MemberDashboard(): JSX.Element {
       value: stats.inProgressCount,
       description: 'Currently working on',
       icon: Clock,
+    },
+    {
+      title: 'Paused Tasks',
+      value: stats.pausedCount,
+      description: 'Tasks temporarily paused',
+      icon: PlayCircle,
     },
     {
       title: 'Completed Today',

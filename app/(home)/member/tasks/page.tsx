@@ -15,7 +15,9 @@ import {
   ExternalLink,
   Loader2,
   Calendar,
-  DollarSign
+  DollarSign,
+  Pause,
+  Play
 } from 'lucide-react'
 import { format, differenceInDays } from 'date-fns'
 
@@ -54,12 +56,13 @@ export default function MyTasksPage() {
   const [orders, setOrders] = useState<Order[]>([])
   const [isLoading, setIsLoading] = useState(true)
   
-  const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'completed'>('active')
+  const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'paused' | 'completed'>('active')
   const [priorityFilter, setPriorityFilter] = useState('all')
   const [sortBy, setSortBy] = useState('default')
   const [daysLeftFilter, setDaysLeftFilter] = useState('all')
   const [startingTaskId, setStartingTaskId] = useState<string | null>(null)
   const [completingTaskId, setCompletingTaskId] = useState<string | null>(null)
+  const [pausingTaskId, setPausingTaskId] = useState<string | null>(null)
 
   useEffect(() => {
     fetchTasks()
@@ -141,10 +144,32 @@ export default function MyTasksPage() {
     }
   }
 
+  const handlePauseTask = async (taskId: string) => {
+    try {
+      setPausingTaskId(taskId)
+      const response = await axios.post(`/api/member/tasks/${taskId}/pause`)
+      
+      // Switch to appropriate tab based on the action
+      if (response.data.message === 'Task paused successfully') {
+        setStatusFilter('paused')
+      } else if (response.data.message === 'Task resumed successfully') {
+        setStatusFilter('active')
+      }
+      
+      // Refresh the tasks after pausing/unpausing
+      await fetchTasks()
+    } catch (error) {
+      console.error('Error pausing/unpausing task:', error)
+    } finally {
+      setPausingTaskId(null)
+    }
+  }
+
   const getStatusBadge = (status: string) => {
-    const variants: Record<string, { label: string; variant: 'default' | 'secondary' | 'outline' }> = {
+    const variants: Record<string, { label: string; variant: 'default' | 'secondary' | 'outline' | 'destructive' }> = {
       ASSIGNED: { label: 'NOT STARTED', variant: 'secondary' },
       IN_PROGRESS: { label: 'IN PROGRESS', variant: 'default' },
+      PAUSED: { label: 'PAUSED', variant: 'destructive' },
       COMPLETED: { label: 'COMPLETED', variant: 'outline' },
     }
     const config = variants[status] || { label: status, variant: 'outline' as const }
@@ -320,6 +345,9 @@ export default function MyTasksPage() {
           <TabsList>
             <TabsTrigger value="all">All</TabsTrigger>
             <TabsTrigger value="active">Active</TabsTrigger>
+            <TabsTrigger value="paused">
+              Paused
+            </TabsTrigger>
             <TabsTrigger value="completed">Completed</TabsTrigger>
           </TabsList>
         </Tabs>
@@ -456,40 +484,84 @@ export default function MyTasksPage() {
                         </TableCell>
                         <TableCell>{getDeadlineWarning(task)}</TableCell>
                         <TableCell>
-                          {task.status === 'ASSIGNED' && (
-                            <Button
-                              size="sm"
-                              onClick={() => handleStartTask(task.id)}
-                              disabled={startingTaskId === task.id}
-                            >
-                              {startingTaskId === task.id ? (
-                                <>
-                                  <Loader2 className="h-3 w-3 mr-1 animate-spin" />
-                                  Starting...
-                                </>
-                              ) : (
-                                'Start Work'
-                              )}
-                            </Button>
-                          )}
-                          {task.status === 'IN_PROGRESS' && (
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => handleCompleteTask(task.id)}
-                              disabled={completingTaskId === task.id}
-                              className='text-green-500 hover:text-green-700'
-                            >
-                              {completingTaskId === task.id ? (
-                                <>
-                                  <Loader2 className="h-3 w-3 mr-1 animate-spin" />
-                                  Completing...
-                                </>
-                              ) : (
-                                'Complete Task'
-                              )}
-                            </Button>
-                          )}
+                          <div className="flex gap-2">
+                            {task.status === 'ASSIGNED' && (
+                              <Button
+                                size="sm"
+                                onClick={() => handleStartTask(task.id)}
+                                disabled={startingTaskId === task.id}
+                              >
+                                {startingTaskId === task.id ? (
+                                  <>
+                                    <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                                    Starting...
+                                  </>
+                                ) : (
+                                  'Start Work'
+                                )}
+                              </Button>
+                            )}
+                            {task.status === 'IN_PROGRESS' && (
+                              <>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => handlePauseTask(task.id)}
+                                  disabled={pausingTaskId === task.id}
+                                  className="text-amber-500 hover:text-amber-700"
+                                >
+                                  {pausingTaskId === task.id ? (
+                                    <>
+                                      <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                                      Pausing...
+                                    </>
+                                  ) : (
+                                    <>
+                                      <Pause className="h-3 w-3 mr-1" />
+                                      Pause
+                                    </>
+                                  )}
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => handleCompleteTask(task.id)}
+                                  disabled={completingTaskId === task.id}
+                                  className='text-green-500 hover:text-green-700'
+                                >
+                                  {completingTaskId === task.id ? (
+                                    <>
+                                      <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                                      Completing...
+                                    </>
+                                  ) : (
+                                    'Complete Task'
+                                  )}
+                                </Button>
+                              </>
+                            )}
+                            {task.status === 'PAUSED' && (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => handlePauseTask(task.id)}
+                                disabled={pausingTaskId === task.id}
+                                className="text-blue-500 hover:text-blue-700"
+                              >
+                                {pausingTaskId === task.id ? (
+                                  <>
+                                    <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                                    Resuming...
+                                  </>
+                                ) : (
+                                  <>
+                                    <Play className="h-3 w-3 mr-1" />
+                                    Resume
+                                  </>
+                                )}
+                              </Button>
+                            )}
+                          </div>
                         </TableCell>
                       </TableRow>
                     ))}

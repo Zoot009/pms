@@ -21,7 +21,8 @@ import {
   User,
   Loader2,
   Clock,
-  AlertCircle
+  AlertCircle,
+  Pause
 } from 'lucide-react'
 import { format, differenceInDays, differenceInHours, differenceInMinutes } from 'date-fns'
 
@@ -135,10 +136,24 @@ export default function TaskDetailPage({ params }: { params: Promise<{ orderId: 
     }
   }
 
+  const handlePauseTask = async (taskId: string) => {
+    try {
+      setActionLoading(taskId)
+      await axios.post(`/api/member/tasks/${taskId}/pause`)
+      await fetchOrderDetails()
+    } catch (error: any) {
+      console.error('Error pausing/unpausing task:', error)
+      alert(error.response?.data?.error || 'Failed to pause/unpause task')
+    } finally {
+      setActionLoading(null)
+    }
+  }
+
   const getStatusBadge = (status: string) => {
     const variants: Record<string, { label: string; variant: 'default' | 'secondary' | 'outline' | 'destructive' }> = {
       ASSIGNED: { label: 'NOT STARTED', variant: 'secondary' },
       IN_PROGRESS: { label: 'IN PROGRESS', variant: 'default' },
+      PAUSED: { label: 'PAUSED', variant: 'destructive' },
       COMPLETED: { label: 'COMPLETED', variant: 'outline' },
       PENDING: { label: 'PENDING', variant: 'secondary' },
     }
@@ -428,16 +443,46 @@ export default function TaskDetailPage({ params }: { params: Promise<{ orderId: 
                               </Button>
                             )}
                             {task.status === 'IN_PROGRESS' && (
+                              <>
+                                <Button
+                                  variant="outline"
+                                  onClick={() => handlePauseTask(task.id)}
+                                  disabled={actionLoading === task.id}
+                                  className="text-amber-500 hover:text-amber-700"
+                                >
+                                  {actionLoading === task.id ? (
+                                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                  ) : (
+                                    <Pause className="h-4 w-4 mr-2" />
+                                  )}
+                                  Pause Task
+                                </Button>
+                                <Button
+                                  onClick={() => handleCompleteTask(task.id)}
+                                  disabled={actionLoading === task.id}
+                                >
+                                  {actionLoading === task.id ? (
+                                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                  ) : (
+                                    <CheckCircle2 className="h-4 w-4 mr-2" />
+                                  )}
+                                  Complete Task
+                                </Button>
+                              </>
+                            )}
+                            {task.status === 'PAUSED' && (
                               <Button
-                                onClick={() => handleCompleteTask(task.id)}
+                                variant="outline"
+                                onClick={() => handlePauseTask(task.id)}
                                 disabled={actionLoading === task.id}
+                                className="text-blue-500 hover:text-blue-700"
                               >
                                 {actionLoading === task.id ? (
                                   <Loader2 className="h-4 w-4 mr-2 animate-spin" />
                                 ) : (
-                                  <CheckCircle2 className="h-4 w-4 mr-2" />
+                                  <Play className="h-4 w-4 mr-2" />
                                 )}
-                                Complete Task
+                                Resume Task
                               </Button>
                             )}
                           </div>

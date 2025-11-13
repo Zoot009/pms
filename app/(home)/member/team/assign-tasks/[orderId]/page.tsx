@@ -219,10 +219,11 @@ export default function OrderDetailPage() {
   }
 
   const getStatusBadge = (status: string) => {
-    const variants: Record<string, { label: string; variant: 'default' | 'secondary' | 'outline' }> = {
+    const variants: Record<string, { label: string; variant: 'default' | 'secondary' | 'outline' | 'destructive' }> = {
       NOT_ASSIGNED: { label: 'READY TO ASSIGN', variant: 'secondary' },
       ASSIGNED: { label: 'ASSIGNED', variant: 'default' },
       IN_PROGRESS: { label: 'IN PROGRESS', variant: 'default' },
+      PAUSED: { label: 'PAUSED', variant: 'destructive' },
       COMPLETED: { label: 'COMPLETED', variant: 'outline' },
     }
     const config = variants[status] || { label: status, variant: 'outline' as const }

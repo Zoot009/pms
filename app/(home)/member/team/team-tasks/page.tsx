@@ -251,6 +251,7 @@ export default function TeamTasksPage() {
       NOT_ASSIGNED: { label: 'UNASSIGNED', variant: 'secondary' },
       ASSIGNED: { label: 'ASSIGNED', variant: 'default' },
       IN_PROGRESS: { label: 'IN PROGRESS', variant: 'default' },
+      PAUSED: { label: 'PAUSED', variant: 'destructive' },
       COMPLETED: { label: 'COMPLETED', variant: 'outline' },
       OVERDUE: { label: 'OVERDUE', variant: 'destructive' },
     }
