@@ -12,6 +12,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert'
 import { StageDetailsModal } from '@/components/stage-details-modal'
 import { EditOrderButton } from '@/components/edit-order-button'
 import { ExtendDeliveryButton } from '@/components/extend-delivery-button'
+import { EditServicesModal } from '@/components/edit-services-modal'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import {
   AlertDialog,
@@ -74,6 +75,7 @@ export default function OrderDetailPage({ params }: OrderDetailPageProps) {
   const [selectedAskingTaskId, setSelectedAskingTaskId] = useState<string | null>(null)
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
+  const [showEditServicesModal, setShowEditServicesModal] = useState(false)
 
   useEffect(() => {
     fetchOrderDetails()
@@ -232,7 +234,15 @@ export default function OrderDetailPage({ params }: OrderDetailPageProps) {
           </Button>
           <div>
             <h1 className="text-3xl font-bold">Order #{order.orderNumber}</h1>
-            <p className="text-muted-foreground">{order.orderType.name}</p>
+            <div className="flex items-center gap-2">
+              <p className="text-muted-foreground">{order.orderType.name}</p>
+              {order.isCustomized && (
+                <Badge variant="outline" className="text-xs">
+                  <Settings className="h-3 w-3 mr-1" />
+                  Custom Services
+                </Badge>
+              )}
+            </div>
           </div>
         </div>
         <div className="flex items-center gap-2">
@@ -252,6 +262,15 @@ export default function OrderDetailPage({ params }: OrderDetailPageProps) {
                 currentDeliveryDate={order.deliveryDate}
                 onUpdate={fetchOrderDetails}
               />
+              {(currentUser?.role === 'ORDER_CREATOR' || currentUser?.role === 'ADMIN') && order.status !== 'COMPLETED' && order.status !== 'CANCELLED' && (
+                <Button
+                  variant="outline"
+                  onClick={() => setShowEditServicesModal(true)}
+                >
+                  <Settings className="h-4 w-4 mr-2" />
+                  Edit Services
+                </Button>
+              )}
               {canDelete && (
                 <Button
                   variant="destructive"
@@ -804,6 +823,16 @@ export default function OrderDetailPage({ params }: OrderDetailPageProps) {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Edit Services Modal */}
+      <EditServicesModal
+        orderId={orderId}
+        isOpen={showEditServicesModal}
+        onClose={() => setShowEditServicesModal(false)}
+        onSuccess={() => {
+          fetchOrderDetails() // Refresh order data after services are updated
+        }}
+      />
     </div>
   )
 }
