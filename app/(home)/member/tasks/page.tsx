@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
+import { Input } from '@/components/ui/input'
 import Link from 'next/link'
 import { 
   AlertTriangle, 
@@ -17,7 +18,8 @@ import {
   Calendar,
   DollarSign,
   Pause,
-  Play
+  Play,
+  Search
 } from 'lucide-react'
 import { format, differenceInDays } from 'date-fns'
 
@@ -60,6 +62,7 @@ export default function MyTasksPage() {
   const [priorityFilter, setPriorityFilter] = useState('all')
   const [sortBy, setSortBy] = useState('default')
   const [daysLeftFilter, setDaysLeftFilter] = useState('all')
+  const [searchTerm, setSearchTerm] = useState('')
   const [startingTaskId, setStartingTaskId] = useState<string | null>(null)
   const [completingTaskId, setCompletingTaskId] = useState<string | null>(null)
   const [pausingTaskId, setPausingTaskId] = useState<string | null>(null)
@@ -86,35 +89,48 @@ export default function MyTasksPage() {
     }
   }
 
-  // Filter orders by days left until delivery
-  const filterOrdersByDaysLeft = (orders: Order[]) => {
-    if (daysLeftFilter === 'all') return orders
+  // Filter orders by search term and days left until delivery
+  const getFilteredOrders = (orders: Order[]) => {
+    let filtered = orders
 
-    return orders.filter(order => {
-      if (!order.deliveryDate) return false
-      
-      const daysLeft = differenceInDays(new Date(order.deliveryDate), new Date())
-      
-      switch (daysLeftFilter) {
-        case 'overdue':
-          return daysLeft < 0
-        case 'today':
-          return daysLeft === 0
-        case '1-3':
-          return daysLeft >= 1 && daysLeft <= 3
-        case '4-7':
-          return daysLeft >= 4 && daysLeft <= 7
-        case '8-14':
-          return daysLeft >= 8 && daysLeft <= 14
-        case '15+':
-          return daysLeft >= 15
-        default:
-          return true
-      }
-    })
+    // Apply search filter first
+    if (searchTerm.trim()) {
+      filtered = filtered.filter(order => 
+        order.orderNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (order.customerName && order.customerName.toLowerCase().includes(searchTerm.toLowerCase()))
+      )
+    }
+
+    // Apply days left filter
+    if (daysLeftFilter !== 'all') {
+      filtered = filtered.filter(order => {
+        if (!order.deliveryDate) return false
+        
+        const daysLeft = differenceInDays(new Date(order.deliveryDate), new Date())
+        
+        switch (daysLeftFilter) {
+          case 'overdue':
+            return daysLeft < 0
+          case 'today':
+            return daysLeft === 0
+          case '1-3':
+            return daysLeft >= 1 && daysLeft <= 3
+          case '4-7':
+            return daysLeft >= 4 && daysLeft <= 7
+          case '8-14':
+            return daysLeft >= 8 && daysLeft <= 14
+          case '15+':
+            return daysLeft >= 15
+          default:
+            return true
+        }
+      })
+    }
+
+    return filtered
   }
 
-  const filteredOrders = filterOrdersByDaysLeft(orders)
+  const filteredOrders = getFilteredOrders(orders)
 
   const handleStartTask = async (taskId: string) => {
     try {
@@ -283,6 +299,59 @@ export default function MyTasksPage() {
         </p>
       </div>
 
+      {/* Search */}
+      <div className="relative">
+        <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+        <Input
+          placeholder="Search by customer name or order ID..."
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          className="pl-10"
+        />
+      </div>
+
+
+    <div className="flex justify-between items-center mb- gap-6">
+      {/* Status, Priority, and Sort Filters */}
+      <div className="flex flex-col sm:flex-row gap-4">
+        <Tabs value={statusFilter} onValueChange={(val) => setStatusFilter(val as any)}>
+          <TabsList>
+            <TabsTrigger value="all">All</TabsTrigger>
+            <TabsTrigger value="active">Active</TabsTrigger>
+            <TabsTrigger value="paused">
+              Paused
+            </TabsTrigger>
+            <TabsTrigger value="completed">Completed</TabsTrigger>
+          </TabsList>
+        </Tabs>
+
+        <Select value={priorityFilter} onValueChange={setPriorityFilter}>
+          <SelectTrigger className="w-[180px]">
+            <SelectValue placeholder="Filter by priority" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Priorities</SelectItem>
+            <SelectItem value="urgent">Urgent</SelectItem>
+            <SelectItem value="high">High</SelectItem>
+            <SelectItem value="medium">Medium</SelectItem>
+            <SelectItem value="low">Low</SelectItem>
+          </SelectContent>
+        </Select>
+
+        <Select value={sortBy} onValueChange={setSortBy}>
+          <SelectTrigger className="w-[180px]">
+            <SelectValue placeholder="Sort by" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="default">Default</SelectItem>
+            <SelectItem value="deadline">Deadline</SelectItem>
+            <SelectItem value="priority">Priority</SelectItem>
+            <SelectItem value="orderDate">Order Date</SelectItem>
+            <SelectItem value="status">Status</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+
       {/* Filters */}
       <div className="flex flex-col sm:flex-row gap-4">
         {/* Days Left Filter Pills */}
@@ -339,45 +408,7 @@ export default function MyTasksPage() {
         </div>
       </div>
 
-      {/* Status, Priority, and Sort Filters */}
-      <div className="flex flex-col sm:flex-row gap-4">
-        <Tabs value={statusFilter} onValueChange={(val) => setStatusFilter(val as any)}>
-          <TabsList>
-            <TabsTrigger value="all">All</TabsTrigger>
-            <TabsTrigger value="active">Active</TabsTrigger>
-            <TabsTrigger value="paused">
-              Paused
-            </TabsTrigger>
-            <TabsTrigger value="completed">Completed</TabsTrigger>
-          </TabsList>
-        </Tabs>
-
-        <Select value={priorityFilter} onValueChange={setPriorityFilter}>
-          <SelectTrigger className="w-[180px]">
-            <SelectValue placeholder="Filter by priority" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Priorities</SelectItem>
-            <SelectItem value="urgent">Urgent</SelectItem>
-            <SelectItem value="high">High</SelectItem>
-            <SelectItem value="medium">Medium</SelectItem>
-            <SelectItem value="low">Low</SelectItem>
-          </SelectContent>
-        </Select>
-
-        <Select value={sortBy} onValueChange={setSortBy}>
-          <SelectTrigger className="w-[180px]">
-            <SelectValue placeholder="Sort by" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="default">Default</SelectItem>
-            <SelectItem value="deadline">Deadline</SelectItem>
-            <SelectItem value="priority">Priority</SelectItem>
-            <SelectItem value="orderDate">Order Date</SelectItem>
-            <SelectItem value="status">Status</SelectItem>
-          </SelectContent>
-        </Select>
-      </div>
+    </div>
 
       {/* Orders and Tasks */}
       {filteredOrders.length === 0 ? (
