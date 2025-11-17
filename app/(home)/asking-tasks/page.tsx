@@ -21,6 +21,12 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from '@/components/ui/tabs'
+import {
   Dialog,
   DialogContent,
   DialogDescription,
@@ -91,6 +97,7 @@ export default function AskingTasksPage() {
   const [stageFilter, setStageFilter] = useState('all')
   const [searchQuery, setSearchQuery] = useState('')
   const [openOrders, setOpenOrders] = useState<Record<string, boolean>>({})
+  const [activeTab, setActiveTab] = useState<'pending' | 'completed'>('pending')
   
   // Complete dialog state
   const [showCompleteDialog, setShowCompleteDialog] = useState(false)
@@ -107,7 +114,7 @@ export default function AskingTasksPage() {
     setAskingTasks([])
     setHasMore(true)
     fetchAskingTasks(1, true)
-  }, [statusFilter, flaggedFilter, stageFilter])
+  }, [statusFilter, flaggedFilter, stageFilter, activeTab])
 
   useEffect(() => {
     const handleScroll = () => {
@@ -133,8 +140,16 @@ export default function AskingTasksPage() {
         setIsLoadingMore(true)
       }
       
+      // Adjust status filter based on active tab
+      let effectiveStatusFilter = statusFilter
+      if (activeTab === 'pending') {
+        effectiveStatusFilter = 'active' // Only fetch active tasks for pending tab
+      } else if (activeTab === 'completed') {
+        effectiveStatusFilter = 'completed' // Only fetch completed tasks for completed tab
+      }
+      
       const params = new URLSearchParams({
-        status: statusFilter,
+        status: effectiveStatusFilter,
         flagged: flaggedFilter,
         stage: stageFilter,
         search: searchQuery,
@@ -268,7 +283,7 @@ export default function AskingTasksPage() {
     }
   }
 
-  // Group tasks by order
+  // Group tasks by order and separate into pending and completed
   const groupTasksByOrder = () => {
     const grouped = new Map<string, AskingTask[]>()
     askingTasks.forEach((task) => {
@@ -286,8 +301,14 @@ export default function AskingTasksPage() {
       amount: tasks[0].order.amount,
       folderLink: tasks[0].order.folderLink,
       tasks,
+      hasIncompleteTasks: tasks.some(task => !task.completedAt),
+      allTasksCompleted: tasks.every(task => task.completedAt),
     }))
   }
+
+  const groupedOrders = groupTasksByOrder()
+  const pendingOrders = groupedOrders.filter(order => order.hasIncompleteTasks)
+  const completedOrders = groupedOrders.filter(order => order.allTasksCompleted)
 
   const toggleOrder = (orderId: string) => {
     setOpenOrders(prev => ({
@@ -321,8 +342,6 @@ export default function AskingTasksPage() {
     const config = variants[priority] || { variant: 'default' }
     return <Badge variant={config.variant}>{priority}</Badge>
   }
-
-  const groupedOrders = groupTasksByOrder()
 
   if (isLoading) {
     return (
@@ -400,170 +419,314 @@ export default function AskingTasksPage() {
         </CardContent>
       </Card>
 
-      {/* Asking Tasks Section - Grouped by Orders */}
-      {askingTasks.length === 0 ? (
-        <Card>
-          <CardContent className="pt-6">
-            <div className="text-center py-12 text-muted-foreground">
-              No asking tasks found
-            </div>
-          </CardContent>
-        </Card>
-      ) : (
-        <div className="space-y-4">
-          {groupedOrders.map((order) => {
-            const orderOpen = isOrderOpen(order.orderId)
-            
-            return (
-              <Card key={order.orderId}>
-                <Collapsible open={orderOpen} onOpenChange={() => toggleOrder(order.orderId)}>
-                  <CardHeader className="cursor-pointer" onClick={() => toggleOrder(order.orderId)}>
-                    <div className="flex items-start gap-3">
-                      <Checkbox 
-                        checked={orderOpen}
-                        onCheckedChange={() => toggleOrder(order.orderId)}
-                        onClick={(e) => e.stopPropagation()}
-                        className="data-[state=checked]:bg-green-600 data-[state=checked]:border-green-600 mt-1"
-                      />
-                      <CollapsibleTrigger asChild>
-                        <div className="flex items-start justify-between flex-1">
-                          <div className="flex flex-col gap-2 flex-1">
-                            <div className="flex items-center gap-2">
-                              <CardTitle className="text-xl">
-                                Order #{order.orderNumber}
-                              </CardTitle>
-                              <Badge variant="secondary">
-                                {order.tasks.length} {order.tasks.length === 1 ? 'task' : 'tasks'}
-                              </Badge>
-                            </div>
-                            <div className="flex flex-wrap items-center gap-4 text-md">
-                              <div>
-                                <span className="text-muted-foreground">Customer: </span>
-                                <span className="font-bold">{order.customerName}</span>
-                              </div>
-                              <div>
-                                <span className="text-muted-foreground">Delivery: </span>
-                                <span className="font-medium">{format(new Date(order.deliveryDate), 'MMM d, yyyy')}</span>
-                              </div>
-                              <div>
-                                <span className="text-muted-foreground">Amount: </span>
-                                <span className="font-medium">
-                                  ${typeof order.amount === 'object' 
-                                    ? parseFloat(order.amount.toString()).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-                                    : parseFloat(String(order.amount)).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-                                  }
-                                </span>
-                              </div>
-                              {order.folderLink && (
-                                <a
-                                  href={order.folderLink}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  onClick={(e) => e.stopPropagation()}
-                                  className="text-blue-600 hover:text-blue-800 flex items-center gap-1"
-                                >
-                                  <ExternalLink className="h-3 w-3" />
-                                  Folder Link
-                                </a>
-                              )}
-                            </div>
-                          </div>
-                          {orderOpen ? (
-                            <ChevronUp className="h-5 w-5" />
-                          ) : (
-                            <ChevronDown className="h-5 w-5" />
-                          )}
-                        </div>
-                      </CollapsibleTrigger>
-                    </div>
-                  </CardHeader>
-                  <CollapsibleContent>
-                    <CardContent className="space-y-3 pt-0">
-                      {order.tasks.map((task) => {
-                        const isMandatory = task.priority === 'HIGH' || task.isFlagged
-                        
-                        return (
-                          <div
-                            key={task.id}
-                            className={`flex items-center justify-between p-4 border rounded-lg ${
-                              task.completedAt 
-                                ? 'border-green-300 bg-green-50/50 dark:bg-green-950/10' 
-                                : task.isFlagged 
-                                ? 'border-red-300 bg-red-50/50 dark:bg-red-950/10' 
-                                : ''
-                            }`}
-                          >
-                            <div className="flex-1 space-y-1">
-                              <div className="flex items-center gap-2">
-                                <span className={`font-medium ${task.completedAt ? 'line-through text-muted-foreground' : ''}`}>
-                                  {task.service?.name || task.title}
-                                </span>
-                                {task.completedAt && (
-                                  <Badge variant="outline" className="text-xs bg-green-100 text-green-800 border-green-300">
-                                    COMPLETED
+      {/* Tabs for Pending and Completed Orders */}
+      <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as 'pending' | 'completed')} className="w-full">
+        <TabsList className="grid w-full max-w-md grid-cols-2">
+          <TabsTrigger value="pending" className="relative">
+            Pending
+            {pendingOrders.length > 0 && (
+              <Badge variant="secondary" className="ml-2 px-2 py-0 text-xs">
+                {pendingOrders.length}
+              </Badge>
+            )}
+          </TabsTrigger>
+          <TabsTrigger value="completed" className="relative">
+            Completed
+            {completedOrders.length > 0 && (
+              <Badge variant="secondary" className="ml-2 px-2 py-0 text-xs">
+                {completedOrders.length}
+              </Badge>
+            )}
+          </TabsTrigger>
+        </TabsList>
+
+        {/* Pending Orders Tab */}
+        <TabsContent value="pending" className="mt-4">
+          {pendingOrders.length === 0 ? (
+            <Card>
+              <CardContent className="pt-6">
+                <div className="text-center py-12 text-muted-foreground">
+                  No pending asking tasks found
+                </div>
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="space-y-4">
+              {pendingOrders.map((order) => {
+                const orderOpen = isOrderOpen(order.orderId)
+                
+                return (
+                  <Card key={order.orderId}>
+                    <Collapsible open={orderOpen} onOpenChange={() => toggleOrder(order.orderId)}>
+                      <CardHeader className="cursor-pointer" onClick={() => toggleOrder(order.orderId)}>
+                        <div className="flex items-start gap-3">
+                          <Checkbox 
+                            checked={orderOpen}
+                            onCheckedChange={() => toggleOrder(order.orderId)}
+                            onClick={(e) => e.stopPropagation()}
+                            className="data-[state=checked]:bg-green-600 data-[state=checked]:border-green-600 mt-1"
+                          />
+                          <CollapsibleTrigger asChild>
+                            <div className="flex items-start justify-between flex-1">
+                              <div className="flex flex-col gap-2 flex-1">
+                                <div className="flex items-center gap-2">
+                                  <CardTitle className="text-xl">
+                                    Order #{order.orderNumber}
+                                  </CardTitle>
+                                  <Badge variant="secondary">
+                                    {order.tasks.length} {order.tasks.length === 1 ? 'task' : 'tasks'}
                                   </Badge>
-                                )}
-                                {isMandatory && !task.completedAt && (
-                                  <Badge variant="destructive" className="text-xs">
-                                    MANDATORY
+                                  <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-300 dark:bg-amber-950 dark:text-amber-300 dark:border-amber-800">
+                                    {order.tasks.filter(t => !t.completedAt).length} pending
                                   </Badge>
-                                )}
-                              </div>
-                              <div className="text-sm text-muted-foreground">
-                                Team: {task.team.name}
-                              </div>
-                              {task.completedAt && task.completedUser && (
-                                <div className="text-xs text-muted-foreground">
-                                  Completed by {task.completedUser.displayName || task.completedUser.email} on {format(new Date(task.completedAt), 'MMM d, yyyy, hh:mm a')}
                                 </div>
-                              )}
-                              <div className="flex items-center gap-2 mt-1">
-                                {getStageBadge(task.currentStage)}
-                                {task.deadline && (
-                                  <span className="text-xs text-muted-foreground">
-                                    Due: {format(new Date(task.deadline), 'MMM d, yyyy')}
-                                  </span>
-                                )}
+                                <div className="flex flex-wrap items-center gap-4 text-md">
+                                  <div>
+                                    <span className="text-muted-foreground">Customer: </span>
+                                    <span className="font-bold">{order.customerName}</span>
+                                  </div>
+                                  <div>
+                                    <span className="text-muted-foreground">Delivery: </span>
+                                    <span className="font-medium">{format(new Date(order.deliveryDate), 'MMM d, yyyy')}</span>
+                                  </div>
+                                  <div>
+                                    <span className="text-muted-foreground">Amount: </span>
+                                    <span className="font-medium">
+                                      ${typeof order.amount === 'object' 
+                                        ? parseFloat(order.amount.toString()).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+                                        : parseFloat(String(order.amount)).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+                                      }
+                                    </span>
+                                  </div>
+                                  {order.folderLink && (
+                                    <a
+                                      href={order.folderLink}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      onClick={(e) => e.stopPropagation()}
+                                      className="text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300 flex items-center gap-1"
+                                    >
+                                      <ExternalLink className="h-3 w-3" />
+                                      Folder Link
+                                    </a>
+                                  )}
+                                </div>
                               </div>
-                            </div>
-                            <div className="flex items-center gap-2 ml-4">
-                              {task.completedAt ? (
-                                <Button variant="outline" size="sm" disabled className="text-green-600 border-green-600">
-                                  <CheckCircle2 className="h-4 w-4 mr-1" />
-                                  Complete
-                                </Button>
+                              {orderOpen ? (
+                                <ChevronUp className="h-5 w-5" />
                               ) : (
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  onClick={() => {
-                                    setSelectedTask(task)
-                                    setShowCompleteDialog(true)
-                                  }}
-                                  className="text-red-600 hover:text-red-700 border-red-200 hover:border-red-300"
-                                >
-                                  Mark Complete
-                                </Button>
+                                <ChevronDown className="h-5 w-5" />
                               )}
-                              <Button
-                                variant="default"
-                                size="sm"
-                                onClick={() => handleShowDetails(task.id)}
-                              >
-                                Show Details
-                              </Button>
                             </div>
-                          </div>
-                        )
-                      })}
-                    </CardContent>
-                  </CollapsibleContent>
-                </Collapsible>
-              </Card>
-            )
-          })}
-        </div>
-      )}
+                          </CollapsibleTrigger>
+                        </div>
+                      </CardHeader>
+                      <CollapsibleContent>
+                        <CardContent className="space-y-3 pt-0">
+                          {order.tasks.filter(task => !task.completedAt).map((task) => {
+                            const isMandatory = task.priority === 'HIGH' || task.isFlagged
+                            
+                            return (
+                              <div
+                                key={task.id}
+                                className={`flex items-center justify-between p-4 border rounded-lg ${
+                                  task.isFlagged 
+                                    ? 'border-red-300 bg-red-50/50 dark:bg-red-950/10 dark:border-red-800' 
+                                    : ''
+                                }`}
+                              >
+                                <div className="flex-1 space-y-1">
+                                  <div className="flex items-center gap-2">
+                                    <span className="font-medium">
+                                      {task.service?.name || task.title}
+                                    </span>
+                                    {isMandatory && (
+                                      <Badge variant="destructive" className="text-xs">
+                                        MANDATORY
+                                      </Badge>
+                                    )}
+                                  </div>
+                                  <div className="text-sm text-muted-foreground">
+                                    Team: {task.team.name}
+                                  </div>
+                                  <div className="flex items-center gap-2 mt-1">
+                                    {getStageBadge(task.currentStage)}
+                                    {task.deadline && (
+                                      <span className="text-xs text-muted-foreground">
+                                        Due: {format(new Date(task.deadline), 'MMM d, yyyy')}
+                                      </span>
+                                    )}
+                                  </div>
+                                </div>
+                                <div className="flex items-center gap-2 ml-4">
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => {
+                                      setSelectedTask(task)
+                                      setShowCompleteDialog(true)
+                                    }}
+                                    className="text-red-600 hover:text-red-700 border-red-200 hover:border-red-300 dark:text-red-400 dark:border-red-800 dark:hover:border-red-700"
+                                  >
+                                    Mark Complete
+                                  </Button>
+                                  <Button
+                                    variant="default"
+                                    size="sm"
+                                    onClick={() => handleShowDetails(task.id)}
+                                  >
+                                    Show Details
+                                  </Button>
+                                </div>
+                              </div>
+                            )
+                          })}
+                        </CardContent>
+                      </CollapsibleContent>
+                    </Collapsible>
+                  </Card>
+                )
+              })}
+            </div>
+          )}
+        </TabsContent>
+
+        {/* Completed Orders Tab */}
+        <TabsContent value="completed" className="mt-4">
+          {completedOrders.length === 0 ? (
+            <Card>
+              <CardContent className="pt-6">
+                <div className="text-center py-12 text-muted-foreground">
+                  No completed orders found
+                </div>
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="space-y-4">
+              {completedOrders.map((order) => {
+                const orderOpen = isOrderOpen(order.orderId)
+                
+                return (
+                  <Card key={order.orderId}>
+                    <Collapsible open={orderOpen} onOpenChange={() => toggleOrder(order.orderId)}>
+                      <CardHeader className="cursor-pointer" onClick={() => toggleOrder(order.orderId)}>
+                        <div className="flex items-start gap-3">
+                          <Checkbox 
+                            checked={orderOpen}
+                            onCheckedChange={() => toggleOrder(order.orderId)}
+                            onClick={(e) => e.stopPropagation()}
+                            className="data-[state=checked]:bg-green-600 data-[state=checked]:border-green-600 mt-1"
+                          />
+                          <CollapsibleTrigger asChild>
+                            <div className="flex items-start justify-between flex-1">
+                              <div className="flex flex-col gap-2 flex-1">
+                                <div className="flex items-center gap-2">
+                                  <CardTitle className="text-xl">
+                                    Order #{order.orderNumber}
+                                  </CardTitle>
+                                  <Badge variant="outline" className="bg-green-50 text-green-700 border-green-300 dark:bg-green-950 dark:text-green-300 dark:border-green-800">
+                                    <CheckCircle2 className="h-3 w-3 mr-1" />
+                                    All Complete
+                                  </Badge>
+                                </div>
+                                <div className="flex flex-wrap items-center gap-4 text-md">
+                                  <div>
+                                    <span className="text-muted-foreground">Customer: </span>
+                                    <span className="font-bold">{order.customerName}</span>
+                                  </div>
+                                  <div>
+                                    <span className="text-muted-foreground">Delivery: </span>
+                                    <span className="font-medium">{format(new Date(order.deliveryDate), 'MMM d, yyyy')}</span>
+                                  </div>
+                                  <div>
+                                    <span className="text-muted-foreground">Amount: </span>
+                                    <span className="font-medium">
+                                      ${typeof order.amount === 'object' 
+                                        ? parseFloat(order.amount.toString()).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+                                        : parseFloat(String(order.amount)).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+                                      }
+                                    </span>
+                                  </div>
+                                  {order.folderLink && (
+                                    <a
+                                      href={order.folderLink}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      onClick={(e) => e.stopPropagation()}
+                                      className="text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300 flex items-center gap-1"
+                                    >
+                                      <ExternalLink className="h-3 w-3" />
+                                      Folder Link
+                                    </a>
+                                  )}
+                                </div>
+                              </div>
+                              {orderOpen ? (
+                                <ChevronUp className="h-5 w-5" />
+                              ) : (
+                                <ChevronDown className="h-5 w-5" />
+                              )}
+                            </div>
+                          </CollapsibleTrigger>
+                        </div>
+                      </CardHeader>
+                      <CollapsibleContent>
+                        <CardContent className="space-y-3 pt-0">
+                          {order.tasks.map((task) => {
+                            const isMandatory = task.priority === 'HIGH' || task.isFlagged
+                            
+                            return (
+                              <div
+                                key={task.id}
+                                className="flex items-center justify-between p-4 border rounded-lg border-green-300 bg-green-50/50 dark:bg-green-950/10 dark:border-green-800"
+                              >
+                                <div className="flex-1 space-y-1">
+                                  <div className="flex items-center gap-2">
+                                    <span className="font-medium line-through text-muted-foreground">
+                                      {task.service?.name || task.title}
+                                    </span>
+                                    <Badge variant="outline" className="text-xs bg-green-100 text-green-800 border-green-300 dark:bg-green-950 dark:text-green-300 dark:border-green-800">
+                                      COMPLETED
+                                    </Badge>
+                                  </div>
+                                  <div className="text-sm text-muted-foreground">
+                                    Team: {task.team.name}
+                                  </div>
+                                  {task.completedUser && (
+                                    <div className="text-xs text-muted-foreground">
+                                      Completed by {task.completedUser.displayName || task.completedUser.email} on {format(new Date(task.completedAt!), 'MMM d, yyyy, hh:mm a')}
+                                    </div>
+                                  )}
+                                  <div className="flex items-center gap-2 mt-1">
+                                    {getStageBadge(task.currentStage)}
+                                  </div>
+                                </div>
+                                <div className="flex items-center gap-2 ml-4">
+                                  <Button variant="outline" size="sm" disabled className="text-green-600 border-green-600 dark:text-green-400 dark:border-green-800">
+                                    <CheckCircle2 className="h-4 w-4 mr-1" />
+                                    Complete
+                                  </Button>
+                                  <Button
+                                    variant="default"
+                                    size="sm"
+                                    onClick={() => handleShowDetails(task.id)}
+                                  >
+                                    Show Details
+                                  </Button>
+                                </div>
+                              </div>
+                            )
+                          })}
+                        </CardContent>
+                      </CollapsibleContent>
+                    </Collapsible>
+                  </Card>
+                )
+              })}
+            </div>
+          )}
+        </TabsContent>
+      </Tabs>
 
       {/* Loading More Indicator */}
       {isLoadingMore && (

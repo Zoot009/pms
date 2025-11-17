@@ -18,7 +18,14 @@ export async function GET(request: NextRequest) {
     const limit = parseInt(searchParams.get('limit') || '20')
 
     // Build where condition
-    const whereCondition: any = {}
+    const whereCondition: any = {
+      // Exclude asking tasks from delivered (completed) orders
+      order: {
+        status: {
+          not: 'COMPLETED'
+        }
+      }
+    }
 
     // Status filter
     if (status === 'active') {

@@ -25,6 +25,21 @@ export const adminNavGroups = [
     ],
   },
   {
+    title: 'STATISTICS',
+    items: [
+      {
+        title: 'Task Statistics',
+        href: '/admin/statistics',
+        icon: 'BarChart3',
+      },
+      {
+        title: 'Member Statistics',
+        href: '/admin/statistics/members',
+        icon: 'UserCog',
+      },
+    ],
+  },
+  {
     title: 'TEAM MANAGEMENT',
     items: [
       {

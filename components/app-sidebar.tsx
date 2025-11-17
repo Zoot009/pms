@@ -43,6 +43,8 @@ import {
   Webhook,
   Truck,
   PackageCheck,
+  BarChart3,
+  UserCog,
 } from "lucide-react"
 
 const iconMap: Record<string, LucideIcon> = {
@@ -59,6 +61,8 @@ const iconMap: Record<string, LucideIcon> = {
   Plus,
   Truck,
   PackageCheck,
+  BarChart3,
+  UserCog,
 }
 
 interface NavItem {

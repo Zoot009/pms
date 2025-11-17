@@ -203,7 +203,7 @@ export default function DeliveredPage() {
               {/* Order Number and Status */}
               <div className="flex items-center gap-2 flex-wrap">
                 <span className="font-mono font-semibold text-lg">#{order.orderNumber}</span>
-                <Badge variant="outline" className="bg-green-50 text-green-700 border-green-300">
+                <Badge variant="outline" className="bg-green-50 text-green-700 border-green-300 dark:bg-green-950 dark:text-green-300 dark:border-green-800">
                   <CheckCircle2 className="h-3 w-3 mr-1" />
                   Delivered
                 </Badge>
@@ -217,9 +217,9 @@ export default function DeliveredPage() {
 
               {/* Warning Banner for Incomplete Mandatory Tasks */}
               {hasIncompleteMandatory && (
-                <div className="bg-amber-50 border border-amber-200 rounded-md p-2 flex items-start gap-2">
-                  <AlertTriangle className="h-4 w-4 text-amber-600 mt-0.5" />
-                  <p className="text-sm text-amber-800">
+                <div className="bg-amber-50 border border-amber-200 rounded-md p-2 flex items-start gap-2 dark:bg-amber-950 dark:border-amber-800">
+                  <AlertTriangle className="h-4 w-4 text-amber-600 mt-0.5 dark:text-amber-400" />
+                  <p className="text-sm text-amber-800 dark:text-amber-200">
                     Delivered with {order.statistics.incompleteMandatoryTasks} incomplete mandatory task(s)
                   </p>
                 </div>
@@ -250,17 +250,17 @@ export default function DeliveredPage() {
 
         <CardContent className="pt-4 space-y-3">
           {/* Service Tasks Summary */}
-          <div className="flex items-center justify-between p-3 bg-blue-50 rounded-lg">
+          <div className="flex items-center justify-between p-3 bg-blue-50 rounded-lg dark:bg-blue-950">
             <div className="flex items-center gap-2">
-              <PackageCheck className="h-4 w-4 text-blue-600" />
+              <PackageCheck className="h-4 w-4 text-blue-600 dark:text-blue-400" />
               <span className="text-sm font-medium">Service Tasks ({order.statistics.serviceTasks})</span>
             </div>
           </div>
 
           {/* Asking Tasks Summary */}
-          <div className="flex items-center justify-between p-3 bg-purple-50 rounded-lg">
+          <div className="flex items-center justify-between p-3 bg-purple-50 rounded-lg dark:bg-purple-950">
             <div className="flex items-center gap-2">
-              <FileText className="h-4 w-4 text-purple-600" />
+              <FileText className="h-4 w-4 text-purple-600 dark:text-purple-400" />
               <span className="text-sm font-medium">Asking Tasks ({order.statistics.askingTasks})</span>
             </div>
           </div>
@@ -271,8 +271,8 @@ export default function DeliveredPage() {
               <CollapsibleTrigger asChild>
                 <Button variant="ghost" className="w-full justify-between p-3 h-auto">
                   <div className="flex items-center gap-2">
-                    <AlertCircle className="h-4 w-4 text-red-600" />
-                    <span className="text-sm font-medium text-red-600">
+                    <AlertCircle className="h-4 w-4 text-red-600 dark:text-red-400" />
+                    <span className="text-sm font-medium text-red-600 dark:text-red-400">
                       Incomplete Mandatory tasks
                     </span>
                   </div>
@@ -284,8 +284,8 @@ export default function DeliveredPage() {
                 </Button>
               </CollapsibleTrigger>
               <CollapsibleContent className="space-y-2 mt-2">
-                <div className="bg-red-50 border border-red-200 rounded-md p-3">
-                  <ul className="space-y-2 list-disc list-inside text-sm text-red-800">
+                <div className="bg-red-50 border border-red-200 rounded-md p-3 dark:bg-red-950 dark:border-red-800">
+                  <ul className="space-y-2 list-disc list-inside text-sm text-red-800 dark:text-red-200">
                     {order.askingTasks
                       .filter(task => task.isMandatory && !task.completedAt)
                       .map(task => (
@@ -349,9 +349,9 @@ export default function DeliveredPage() {
                       {order.tasks.map(task => (
                         <div key={task.id} className="flex items-start gap-2 text-sm p-2 bg-muted/50 rounded">
                           {task.completedAt ? (
-                            <CheckCircle2 className="h-4 w-4 text-green-600 mt-0.5" />
+                            <CheckCircle2 className="h-4 w-4 text-green-600 dark:text-green-400 mt-0.5" />
                           ) : (
-                            <Clock className="h-4 w-4 text-amber-600 mt-0.5" />
+                            <Clock className="h-4 w-4 text-amber-600 dark:text-amber-400 mt-0.5" />
                           )}
                           <span className="flex-1">{task.title}</span>
                         </div>
@@ -371,9 +371,9 @@ export default function DeliveredPage() {
                       {order.askingTasks.map(task => (
                         <div key={task.id} className="flex items-start gap-2 text-sm p-2 bg-muted/50 rounded">
                           {task.completedAt ? (
-                            <CheckCircle2 className="h-4 w-4 text-green-600 mt-0.5" />
+                            <CheckCircle2 className="h-4 w-4 text-green-600 dark:text-green-400 mt-0.5" />
                           ) : (
-                            <Clock className="h-4 w-4 text-amber-600 mt-0.5" />
+                            <Clock className="h-4 w-4 text-amber-600 dark:text-amber-400 mt-0.5" />
                           )}
                           <div className="flex-1">
                             <p>{task.title}</p>
@@ -505,7 +505,7 @@ export default function DeliveredPage() {
         <Card>
           <CardHeader className="pb-3">
             <CardDescription>Complete Deliveries</CardDescription>
-            <CardTitle className="text-3xl text-green-600">
+            <CardTitle className="text-3xl text-green-600 dark:text-green-400">
               {filteredOrders.filter(o => o.statistics.incompleteMandatoryTasks === 0).length}
             </CardTitle>
           </CardHeader>
@@ -513,7 +513,7 @@ export default function DeliveredPage() {
         <Card>
           <CardHeader className="pb-3">
             <CardDescription>With Incomplete Tasks</CardDescription>
-            <CardTitle className="text-3xl text-amber-600">
+            <CardTitle className="text-3xl text-amber-600 dark:text-amber-400">
               {filteredOrders.filter(o => o.statistics.incompleteMandatoryTasks > 0).length}
             </CardTitle>
           </CardHeader>
@@ -521,7 +521,7 @@ export default function DeliveredPage() {
         <Card>
           <CardHeader className="pb-3">
             <CardDescription>Total Revenue</CardDescription>
-            <CardTitle className="text-3xl text-blue-600">
+            <CardTitle className="text-3xl text-blue-600 dark:text-blue-400">
               ${filteredOrders.reduce((sum, o) => sum + parseFloat(o.amount), 0).toFixed(2)}
             </CardTitle>
           </CardHeader>
