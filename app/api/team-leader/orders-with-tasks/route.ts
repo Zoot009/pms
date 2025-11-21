@@ -6,6 +6,7 @@ export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url)
     const orderId = searchParams.get('orderId')
+    const completedAskingServices = searchParams.get('completedAskingServices')
     
     const supabase = await createClient()
     const {
@@ -83,6 +84,13 @@ export async function GET(request: Request) {
             ],
           },
         },
+        askingTasks: {
+          select: {
+            id: true,
+            serviceId: true,
+            completedAt: true,
+          },
+        },
       },
       orderBy: {
         deliveryDate: 'asc',
@@ -90,7 +98,24 @@ export async function GET(request: Request) {
     })
 
     // Filter out orders with no tasks (after the task filtering)
-    const ordersWithTasks = orders.filter((order) => order.tasks.length > 0)
+    let ordersWithTasks = orders.filter((order) => order.tasks.length > 0)
+
+    // Filter by completed asking services if specified
+    if (completedAskingServices) {
+      const serviceIds = completedAskingServices.split(',').filter(Boolean)
+      
+      if (serviceIds.length > 0) {
+        ordersWithTasks = ordersWithTasks.filter((order) => {
+          // Check if all selected asking services are completed for this order
+          return serviceIds.every((serviceId) => {
+            const askingTask = order.askingTasks.find(
+              (task) => task.serviceId === serviceId
+            )
+            return askingTask && askingTask.completedAt !== null
+          })
+        })
+      }
+    }
 
     return NextResponse.json({ orders: ordersWithTasks })
   } catch (error) {

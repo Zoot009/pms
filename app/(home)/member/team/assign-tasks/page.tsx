@@ -8,6 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
+import { Checkbox } from '@/components/ui/checkbox'
 import {
   Select,
   SelectContent,
@@ -15,6 +16,18 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover'
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+} from '@/components/ui/command'
 import {
   Table,
   TableBody,
@@ -24,7 +37,7 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { toast } from 'sonner'
-import { Loader2, AlertCircle, ArrowRight, Package, ClipboardCheck } from 'lucide-react'
+import { Loader2, AlertCircle, ArrowRight, Package, ClipboardCheck, Filter, X, Check } from 'lucide-react'
 import { PageHeader } from '@/components/page-header'
 import Link from 'next/link'
 
@@ -39,6 +52,11 @@ interface Order {
   }
   folderLink: string | null
   tasks: Task[]
+  askingTasks: {
+    id: string
+    serviceId: string
+    completedAt: string | null
+  }[]
 }
 
 interface Task {
@@ -68,6 +86,11 @@ interface TeamMember {
   workloadLevel: 'Low' | 'Medium' | 'High'
 }
 
+interface AskingService {
+  id: string
+  name: string
+}
+
 export default function AssignTasksPage() {
   const router = useRouter()
   const [orders, setOrders] = useState<Order[]>([])
@@ -75,8 +98,12 @@ export default function AssignTasksPage() {
   const [isLoading, setIsLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
   const [statusFilter, setStatusFilter] = useState('all')
+  const [askingServices, setAskingServices] = useState<AskingService[]>([])
+  const [selectedAskingServices, setSelectedAskingServices] = useState<string[]>([])
+  const [openAskingFilter, setOpenAskingFilter] = useState(false)
 
   useEffect(() => {
+    fetchAskingServices()
     fetchData()
   }, [])
 
@@ -84,10 +111,24 @@ export default function AssignTasksPage() {
     filterOrders()
   }, [orders, searchQuery, statusFilter])
 
+  const fetchAskingServices = async () => {
+    try {
+      const response = await axios.get('/api/team-leader/asking-services')
+      setAskingServices(response.data.askingServices)
+    } catch (error) {
+      console.error('Error fetching asking services:', error)
+      toast.error('Failed to load asking services')
+    }
+  }
+
   const fetchData = async () => {
     try {
       setIsLoading(true)
-      const ordersResponse = await axios.get('/api/team-leader/orders-with-tasks')
+      const params = new URLSearchParams()
+      if (selectedAskingServices.length > 0) {
+        params.append('completedAskingServices', selectedAskingServices.join(','))
+      }
+      const ordersResponse = await axios.get(`/api/team-leader/orders-with-tasks?${params}`)
       setOrders(ordersResponse.data.orders)
     } catch (error) {
       console.error('Error fetching data:', error)
@@ -126,6 +167,37 @@ export default function AssignTasksPage() {
     }
 
     setFilteredOrders(filtered)
+  }
+
+  const toggleAskingService = (serviceId: string) => {
+    setSelectedAskingServices(prev =>
+      prev.includes(serviceId)
+        ? prev.filter(id => id !== serviceId)
+        : [...prev, serviceId]
+    )
+  }
+
+  const clearAskingServiceFilter = () => {
+    setSelectedAskingServices([])
+  }
+
+  const applyAskingServiceFilter = () => {
+    setOpenAskingFilter(false)
+    fetchData()
+  }
+
+  const handleClearFilter = async () => {
+    setSelectedAskingServices([])
+    try {
+      setIsLoading(true)
+      const ordersResponse = await axios.get('/api/team-leader/orders-with-tasks')
+      setOrders(ordersResponse.data.orders)
+    } catch (error) {
+      console.error('Error fetching data:', error)
+      toast.error('Failed to load data')
+    } finally {
+      setIsLoading(false)
+    }
   }
 
   const getTaskCountByStatus = (tasks: Task[]) => {
@@ -224,25 +296,113 @@ export default function AssignTasksPage() {
         {/* Filters */}
         <Card>
           <CardContent className="pt-6">
-            <div className="flex gap-4">
-              <div className="flex-1">
-                <Input
-                  placeholder="Search by order number or customer name..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                />
+            <div className="flex flex-col gap-4">
+              <div className="flex gap-4">
+                <div className="flex-1">
+                  <Input
+                    placeholder="Search by order number or customer name..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                  />
+                </div>
+                <Select value={statusFilter} onValueChange={setStatusFilter}>
+                  <SelectTrigger className="w-[200px]">
+                    <SelectValue placeholder="All Orders" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Orders</SelectItem>
+                    <SelectItem value="pending">Has Pending Tasks</SelectItem>
+                    <SelectItem value="in-progress">In Progress</SelectItem>
+                    <SelectItem value="completed">Completed</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
-              <Select value={statusFilter} onValueChange={setStatusFilter}>
-                <SelectTrigger className="w-[200px]">
-                  <SelectValue placeholder="All Orders" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Orders</SelectItem>
-                  <SelectItem value="pending">Has Pending Tasks</SelectItem>
-                  <SelectItem value="in-progress">In Progress</SelectItem>
-                  <SelectItem value="completed">Completed</SelectItem>
-                </SelectContent>
-              </Select>
+              
+              {/* Asking Service Filter */}
+              <div className="flex items-center gap-2">
+                <Popover open={openAskingFilter} onOpenChange={setOpenAskingFilter}>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" className="justify-start">
+                      <Filter className="mr-2 h-4 w-4" />
+                      Filter by Completed Asking Tasks
+                      {selectedAskingServices.length > 0 && (
+                        <Badge variant="secondary" className="ml-2">
+                          {selectedAskingServices.length}
+                        </Badge>
+                      )}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-[300px] p-0" align="start">
+                    <Command>
+                      <CommandInput placeholder="Search asking tasks..." />
+                      <CommandEmpty>No asking task found.</CommandEmpty>
+                      <CommandGroup className="max-h-64 overflow-auto">
+                        {askingServices.map((service) => (
+                          <CommandItem
+                            key={service.id}
+                            onSelect={() => toggleAskingService(service.id)}
+                          >
+                            <div className="flex items-center gap-2 flex-1">
+                              <Checkbox
+                                checked={selectedAskingServices.includes(service.id)}
+                                onCheckedChange={() => toggleAskingService(service.id)}
+                              />
+                              <span>{service.name}</span>
+                            </div>
+                            {selectedAskingServices.includes(service.id) && (
+                              <Check className="h-4 w-4 ml-auto" />
+                            )}
+                          </CommandItem>
+                        ))}
+                      </CommandGroup>
+                      <div className="border-t p-2">
+                        <Button
+                          onClick={applyAskingServiceFilter}
+                          className="w-full"
+                          size="sm"
+                        >
+                          Apply Filter
+                        </Button>
+                      </div>
+                    </Command>
+                  </PopoverContent>
+                </Popover>
+                
+                {selectedAskingServices.length > 0 && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={handleClearFilter}
+                    className="h-8"
+                  >
+                    <X className="h-4 w-4 mr-1" />
+                    Clear
+                  </Button>
+                )}
+              </div>
+
+              {/* Selected Asking Services Display */}
+              {selectedAskingServices.length > 0 && (
+                <div className="flex flex-wrap gap-2">
+                  <span className="text-sm text-muted-foreground">
+                    Showing orders with completed:
+                  </span>
+                  {selectedAskingServices.map((serviceId) => {
+                    const service = askingServices.find((s) => s.id === serviceId)
+                    return service ? (
+                      <Badge key={serviceId} variant="secondary" className="gap-1">
+                        {service.name}
+                        <button
+                          onClick={() => toggleAskingService(serviceId)}
+                          className="ml-1 hover:bg-secondary-foreground/20 rounded-full"
+                        >
+                          <X className="h-3 w-3" />
+                        </button>
+                      </Badge>
+                    ) : null
+                  })}
+                </div>
+              )}
             </div>
           </CardContent>
         </Card>

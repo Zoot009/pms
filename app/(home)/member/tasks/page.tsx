@@ -19,9 +19,11 @@ import {
   DollarSign,
   Pause,
   Play,
-  Search
+  Search,
+  FileText
 } from 'lucide-react'
 import { format, differenceInDays } from 'date-fns'
+import { AskingTaskNotesModal } from '@/components/asking-task-notes-modal'
 
 interface Task {
   id: string
@@ -66,6 +68,11 @@ export default function MyTasksPage() {
   const [startingTaskId, setStartingTaskId] = useState<string | null>(null)
   const [completingTaskId, setCompletingTaskId] = useState<string | null>(null)
   const [pausingTaskId, setPausingTaskId] = useState<string | null>(null)
+  
+  // Notes modal state
+  const [showNotesModal, setShowNotesModal] = useState(false)
+  const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null)
+  const [selectedOrderNumber, setSelectedOrderNumber] = useState<string>('')
 
   useEffect(() => {
     fetchTasks()
@@ -179,6 +186,18 @@ export default function MyTasksPage() {
     } finally {
       setPausingTaskId(null)
     }
+  }
+
+  const handleOpenNotesModal = (orderId: string, orderNumber: string) => {
+    setSelectedOrderId(orderId)
+    setSelectedOrderNumber(orderNumber)
+    setShowNotesModal(true)
+  }
+
+  const handleCloseNotesModal = () => {
+    setShowNotesModal(false)
+    setSelectedOrderId(null)
+    setSelectedOrderNumber('')
   }
 
   const getStatusBadge = (status: string) => {
@@ -446,6 +465,14 @@ export default function MyTasksPage() {
                     </CardDescription>
                   </div>
                   <div className="flex gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleOpenNotesModal(order.orderId, order.orderNumber)}
+                    >
+                      <FileText className="h-4 w-4 mr-1" />
+                      View Notes
+                    </Button>
                     {order.folderLink && (
                       <Button variant="outline" size="sm" asChild>
                         <a href={order.folderLink} target="_blank" rel="noopener noreferrer">
@@ -602,6 +629,16 @@ export default function MyTasksPage() {
             </Card>
           ))}
         </div>
+      )}
+
+      {/* Asking Task Notes Modal */}
+      {selectedOrderId && (
+        <AskingTaskNotesModal
+          isOpen={showNotesModal}
+          onClose={handleCloseNotesModal}
+          orderId={selectedOrderId}
+          orderNumber={selectedOrderNumber}
+        />
       )}
     </div>
   )

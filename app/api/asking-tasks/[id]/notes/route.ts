@@ -16,6 +16,10 @@ export async function PATCH(
     const body = await request.json()
     const { notes } = body
 
+    if (notes === undefined) {
+      return NextResponse.json({ error: 'Notes field is required' }, { status: 400 })
+    }
+
     const askingTask = await prisma.askingTask.findUnique({
       where: { id },
     })
@@ -24,28 +28,14 @@ export async function PATCH(
       return NextResponse.json({ error: 'Asking task not found' }, { status: 404 })
     }
 
-    if (askingTask.completedAt) {
-      return NextResponse.json(
-        { error: 'Asking task is already completed' },
-        { status: 400 }
-      )
-    }
-
     const updatedTask = await prisma.askingTask.update({
       where: { id },
       data: {
-        completedAt: new Date(),
-        completedBy: user.id,
-        notes: notes || askingTask.notes,
-        notesUpdatedBy: notes ? user.id : askingTask.notesUpdatedBy,
+        notes,
+        notesUpdatedBy: user.id,
+        updatedAt: new Date(),
       },
       include: {
-        order: {
-          select: {
-            orderNumber: true,
-            customerName: true,
-          },
-        },
         service: {
           select: {
             name: true,
@@ -53,7 +43,6 @@ export async function PATCH(
         },
         completedUser: {
           select: {
-            id: true,
             displayName: true,
             email: true,
           },
@@ -66,9 +55,9 @@ export async function PATCH(
       askingTask: updatedTask,
     })
   } catch (error) {
-    console.error('Error completing asking task:', error)
+    console.error('Error updating asking task notes:', error)
     return NextResponse.json(
-      { error: 'Failed to complete asking task' },
+      { error: 'Failed to update asking task notes' },
       { status: 500 }
     )
   }

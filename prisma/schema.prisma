@@ -96,6 +96,7 @@ model User {
   createdOrderTypes OrderType[]   @relation("OrderTypeCreatedBy")
   askingTasks      AskingTask[]   @relation("AskingTaskAssignedTo")
   completedAskingTasks AskingTask[] @relation("AskingTaskCompletedBy")
+  notesUpdatedAskingTasks AskingTask[] @relation("AskingTaskNotesUpdatedBy")
   auditLogs        AuditLog[]
   
   // Asking Task Stage Relations
@@ -387,6 +388,7 @@ model AskingTask {
   priority              TaskPriority    @default(MEDIUM)
   deadline              DateTime?       @db.Timestamptz(6)
   notes                 String?         @db.Text // Completion notes or issue details
+  notesUpdatedBy        String?         @map("notes_updated_by") @db.VarChar(255) // Last user who updated notes
   createdAt             DateTime        @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt             DateTime        @updatedAt @map("updated_at") @db.Timestamptz(6)
   completedAt           DateTime?       @map("completed_at") @db.Timestamptz(6)
@@ -399,6 +401,7 @@ model AskingTask {
   team          Team                 @relation(fields: [teamId], references: [id])
   assignedUser  User?                @relation("AskingTaskAssignedTo", fields: [assignedTo], references: [id])
   completedUser User?                @relation("AskingTaskCompletedBy", fields: [completedBy], references: [id], onDelete: SetNull)
+  notesUpdatedUser User?             @relation("AskingTaskNotesUpdatedBy", fields: [notesUpdatedBy], references: [id], onDelete: SetNull)
   stageHistory  AskingTaskStage[]
 
   @@index([orderId, currentStage])

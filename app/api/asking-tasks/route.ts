@@ -17,43 +17,49 @@ export async function GET(request: NextRequest) {
     const page = parseInt(searchParams.get('page') || '1')
     const limit = parseInt(searchParams.get('limit') || '20')
 
-    // Build where condition
+    // Build where condition with AND array for proper nesting
     const whereCondition: any = {
-      // Exclude asking tasks from delivered (completed) orders
-      order: {
-        status: {
-          not: 'COMPLETED'
+      AND: [
+        // Exclude asking tasks from delivered (completed) orders
+        {
+          order: {
+            status: {
+              not: 'COMPLETED'
+            }
+          }
         }
-      }
+      ]
     }
 
     // Status filter
     if (status === 'active') {
-      whereCondition.completedAt = null
+      whereCondition.AND.push({ completedAt: null })
     } else if (status === 'completed') {
-      whereCondition.completedAt = { not: null }
+      whereCondition.AND.push({ completedAt: { not: null } })
     }
 
     // Flagged filter
     if (flagged === 'flagged') {
-      whereCondition.isFlagged = true
+      whereCondition.AND.push({ isFlagged: true })
     } else if (flagged === 'unflagged') {
-      whereCondition.isFlagged = false
+      whereCondition.AND.push({ isFlagged: false })
     }
 
     // Stage filter
     if (stage !== 'all') {
-      whereCondition.currentStage = stage
+      whereCondition.AND.push({ currentStage: stage })
     }
 
-    // Search filter
+    // Search filter - use OR within AND structure
     if (search) {
-      whereCondition.OR = [
-        { title: { contains: search, mode: 'insensitive' } },
-        { description: { contains: search, mode: 'insensitive' } },
-        { order: { orderNumber: { contains: search, mode: 'insensitive' } } },
-        { order: { customerName: { contains: search, mode: 'insensitive' } } },
-      ]
+      whereCondition.AND.push({
+        OR: [
+          { title: { contains: search, mode: 'insensitive' } },
+          { description: { contains: search, mode: 'insensitive' } },
+          { order: { orderNumber: { contains: search, mode: 'insensitive' } } },
+          { order: { customerName: { contains: search, mode: 'insensitive' } } },
+        ]
+      })
     }
 
     // Get total count for pagination

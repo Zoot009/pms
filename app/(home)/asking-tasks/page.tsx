@@ -44,7 +44,8 @@ import {
   AlertCircle,
   Eye,
   ChevronDown,
-  ChevronUp
+  ChevronUp,
+  X
 } from 'lucide-react'
 import { format } from 'date-fns'
 import { toast } from 'sonner'
@@ -108,13 +109,23 @@ export default function AskingTasksPage() {
   // Stage details modal state
   const [showStageModal, setShowStageModal] = useState(false)
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null)
+  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState('')
+
+  // Debounce search query
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearchQuery(searchQuery)
+    }, 500)
+
+    return () => clearTimeout(timer)
+  }, [searchQuery])
 
   useEffect(() => {
     setPage(1)
     setAskingTasks([])
     setHasMore(true)
     fetchAskingTasks(1, true)
-  }, [statusFilter, flaggedFilter, stageFilter, activeTab])
+  }, [statusFilter, flaggedFilter, stageFilter, activeTab, debouncedSearchQuery])
 
   useEffect(() => {
     const handleScroll = () => {
@@ -152,7 +163,7 @@ export default function AskingTasksPage() {
         status: effectiveStatusFilter,
         flagged: flaggedFilter,
         stage: stageFilter,
-        search: searchQuery,
+        search: debouncedSearchQuery,
         page: pageNum.toString(),
         limit: '20'
       })
@@ -187,28 +198,6 @@ export default function AskingTasksPage() {
     setAskingTasks([])
     setHasMore(true)
     fetchAskingTasks(1, true)
-  }
-
-  const handleToggleFlag = async (taskId: string, currentFlag: boolean) => {
-    try {
-      await axios.patch(`/api/asking-tasks/${taskId}/flag`, {
-        isFlagged: !currentFlag,
-      })
-      
-      // Update the task in the local state instead of refetching
-      setAskingTasks(prevTasks => 
-        prevTasks.map(task => 
-          task.id === taskId 
-            ? { ...task, isFlagged: !currentFlag }
-            : task
-        )
-      )
-      
-      toast.success(currentFlag ? 'Task unflagged' : 'Task flagged as issue')
-    } catch (error) {
-      console.error('Error toggling flag:', error)
-      toast.error('Failed to update task')
-    }
   }
 
   const handleMarkComplete = async () => {
@@ -407,13 +396,19 @@ export default function AskingTasksPage() {
                 <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
                 <Input
                   placeholder="Search tasks, orders, customers..."
-                  className="pl-8"
+                  className="pl-8 pr-8"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
                 />
+                {searchQuery && (
+                  <button
+                    onClick={() => setSearchQuery('')}
+                    className="absolute right-2.5 top-2.5 text-muted-foreground hover:text-foreground"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                )}
               </div>
-              <Button onClick={handleSearch}>Search</Button>
             </div>
           </div>
         </CardContent>
