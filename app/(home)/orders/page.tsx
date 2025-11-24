@@ -112,6 +112,12 @@ export default function OrdersPage() {
     if (percentage >= 40) return 'bg-yellow-500'
     return 'bg-red-500'
   }
+
+  const handleSearch = () => {
+    setDebouncedSearch(searchQuery)
+  }
+
+  const OrderCard = ({ order }: { order: Order }) => {
     const progressPercentage = order.statistics.totalTasks > 0
       ? Math.round((order.statistics.completedTasks / order.statistics.totalTasks) * 100)
       : 0
@@ -290,7 +296,8 @@ export default function OrdersPage() {
           </Button>
         </CardContent>
       </Card>
-    )}
+    )
+  }
   
   if (isLoading) {
     return (
@@ -476,7 +483,7 @@ export default function OrdersPage() {
       )}
 
       {/* Loading More Indicator */}
-      {isLoadingMore && (
+      {isFetchingNextPage && (
         <div className="flex items-center justify-center py-8">
           <Loader2 className="h-6 w-6 animate-spin mr-2" />
           <span className="text-muted-foreground">Loading more orders...</span>
@@ -484,10 +491,11 @@ export default function OrdersPage() {
       )}
 
       {/* No More Items Indicator */}
-      {!hasMore && orders.length > 0 && (
+      {!hasNextPage && orders.length > 0 && (
         <div className="flex items-center justify-center py-8">
           <span className="text-muted-foreground">No more orders to load</span>
         </div>
       )}
     </div>
-  )}
+  )
+}
