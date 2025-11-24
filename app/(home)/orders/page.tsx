@@ -1,7 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
-import axios from 'axios'
+import { useState, useEffect, useMemo } from 'react'
 import Link from 'next/link'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -22,182 +21,78 @@ import {
   DollarSign,
 } from 'lucide-react'
 import { format } from 'date-fns'
-import { toast } from 'sonner'
 import { OrderActionButtons } from '@/components/order-action-buttons'
-
-interface OrderStats {
-  totalTasks: number
-  completedTasks: number
-  unassignedTasks: number
-  overdueTasks: number
-  mandatoryRemaining: number
-  daysOld: number
-}
-
-interface AskingTask {
-  id: string
-  title: string
-  description?: string
-  completedAt?: string | null
-  isMandatory: boolean
-  service: {
-    id: string
-    name: string
-    type: string
-  }
-}
-
-interface Order {
-  id: string
-  orderNumber: string
-  customerName: string
-  customerEmail: string
-  amount: string
-  orderDate: string
-  deliveryDate: string
-  status: string
-  isCustomized: boolean
-  orderType: {
-    id: string
-    name: string
-  }
-  statistics: OrderStats
-  askingTasks?: AskingTask[]
-}
-
-interface GroupedOrders {
-  [date: string]: Order[]
-}
+import { useOrders } from '@/hooks/queries/use-orders'
+import { useUserPermissions } from '@/hooks/queries/use-auth'
+import type { Order, GroupedOrders } from '@/lib/types/api'
 
 export default function OrdersPage() {
-  const [orders, setOrders] = useState<Order[]>([])
-  const [groupedOrders, setGroupedOrders] = useState<GroupedOrders>({})
-  const [isLoading, setIsLoading] = useState(true)
-  const [isLoadingMore, setIsLoadingMore] = useState(false)
-  const [hasMore, setHasMore] = useState(true)
-  const [page, setPage] = useState(1)
   const [statusFilter, setStatusFilter] = useState('ALL')
   const [searchQuery, setSearchQuery] = useState('')
+  const [debouncedSearch, setDebouncedSearch] = useState('')
   const [viewMode, setViewMode] = useState<'grouped' | 'list'>('list')
   const [dueDateFilter, setDueDateFilter] = useState<string>('all')
-  const [currentUser, setCurrentUser] = useState<any>(null)
-  const [canEdit, setCanEdit] = useState(false)
 
+  // Debounce search query
   useEffect(() => {
-    setPage(1)
-    setOrders([])
-    setGroupedOrders({})
-    setHasMore(true)
-    fetchOrders(1, true)
-    checkUserRole()
-  }, [statusFilter, dueDateFilter])
+    const timer = setTimeout(() => {
+      setDebouncedSearch(searchQuery)
+    }, 500)
+    return () => clearTimeout(timer)
+  }, [searchQuery])
 
+  // Fetch orders with React Query
+  const {
+    data,
+    isLoading,
+    isFetchingNextPage,
+    hasNextPage,
+    fetchNextPage,
+  } = useOrders({
+    status: statusFilter,
+    search: debouncedSearch,
+    daysLeft: dueDateFilter !== 'all' ? dueDateFilter : undefined,
+    limit: 20,
+  })
+
+  // Fetch user permissions
+  const { data: userPermissions } = useUserPermissions()
+  const canEdit = userPermissions?.canEdit ?? false
+
+  // Flatten all pages of orders
+  const orders = useMemo(() => {
+    return data?.pages.flatMap((page) => page.orders) ?? []
+  }, [data])
+
+  // Group orders by delivery date for grouped view
+  const groupedOrders = useMemo(() => {
+    const grouped: GroupedOrders = {}
+    orders.forEach((order) => {
+      const date = order.deliveryDate || 'no-date'
+      if (!grouped[date]) {
+        grouped[date] = []
+      }
+      grouped[date].push(order)
+    })
+    return grouped
+  }, [orders])
+
+  // Infinite scroll effect
   useEffect(() => {
     const handleScroll = () => {
       if (
         window.innerHeight + document.documentElement.scrollTop
         >= document.documentElement.offsetHeight - 1000 &&
-        !isLoadingMore &&
-        hasMore
+        !isFetchingNextPage &&
+        hasNextPage
       ) {
-        loadMoreOrders()
+        fetchNextPage()
       }
     }
 
     window.addEventListener('scroll', handleScroll)
     return () => window.removeEventListener('scroll', handleScroll)
-  }, [isLoadingMore, hasMore, page])
-
-  const checkUserRole = async () => {
-    try {
-      const userResponse = await axios.get('/api/auth/sync')
-      setCurrentUser(userResponse.data.user)
-      
-      const user = userResponse.data.user
-      
-      // Check if user can edit orders
-      const isAdmin = user?.role === 'ADMIN'
-      const isOrderCreator = user?.role === 'ORDER_CREATOR'
-      
-      // Check if user is a team leader
-      try {
-        const teamResponse = await axios.get('/api/team-leader/my-teams')
-        const isTeamLeader = teamResponse.data.teams && teamResponse.data.teams.length > 0
-        setCanEdit(isAdmin || isOrderCreator || isTeamLeader)
-      } catch {
-        setCanEdit(isAdmin || isOrderCreator)
-      }
-    } catch (error) {
-      console.error('Error checking user role:', error)
-      setCanEdit(false)
-    }
-  }
-
-  const fetchOrders = async (pageNum: number = 1, reset: boolean = false) => {
-    try {
-      if (reset) {
-        setIsLoading(true)
-      } else {
-        setIsLoadingMore(true)
-      }
-      
-      const params = new URLSearchParams({
-        status: statusFilter,
-        search: searchQuery,
-        page: pageNum.toString(),
-        limit: '20'
-      })
-      
-      // Add due date filter if not "all"
-      if (dueDateFilter !== 'all') {
-        params.append('daysLeft', dueDateFilter)
-      }
-      
-      const response = await axios.get(`/api/orders?${params}`)
-      
-      if (reset) {
-        setOrders(response.data.orders)
-        setGroupedOrders(response.data.groupedByDate)
-      } else {
-        setOrders(prev => [...prev, ...response.data.orders])
-        // For grouped orders, merge the new data
-        setGroupedOrders(prev => {
-          const newGrouped = { ...prev }
-          Object.entries(response.data.groupedByDate).forEach(([date, dateOrders]) => {
-            if (newGrouped[date]) {
-              newGrouped[date] = [...newGrouped[date], ...dateOrders as Order[]]
-            } else {
-              newGrouped[date] = dateOrders as Order[]
-            }
-          })
-          return newGrouped
-        })
-      }
-      
-      setHasMore(response.data.hasMore)
-      setPage(pageNum)
-    } catch (error) {
-      console.error('Error fetching orders:', error)
-      toast.error('Failed to load orders')
-    } finally {
-      setIsLoading(false)
-      setIsLoadingMore(false)
-    }
-  }
-
-  const loadMoreOrders = () => {
-    if (!isLoadingMore && hasMore) {
-      fetchOrders(page + 1, false)
-    }
-  }
-
-  const handleSearch = () => {
-    setPage(1)
-    setOrders([])
-    setGroupedOrders({})
-    setHasMore(true)
-    fetchOrders(1, true)
-  }
+  }, [isFetchingNextPage, hasNextPage, fetchNextPage])
 
   const getStatusBadge = (status: string) => {
     const variants: Record<string, { variant: 'default' | 'secondary' | 'outline'; label: string }> = {
@@ -217,8 +112,6 @@ export default function OrdersPage() {
     if (percentage >= 40) return 'bg-yellow-500'
     return 'bg-red-500'
   }
-
-  const OrderCard = ({ order }: { order: Order }) => {
     const progressPercentage = order.statistics.totalTasks > 0
       ? Math.round((order.statistics.completedTasks / order.statistics.totalTasks) * 100)
       : 0
@@ -384,7 +277,6 @@ export default function OrdersPage() {
                 currentDeliveryDate={order.deliveryDate}
                 currentAmount={order.amount}
                 currentNotes=""
-                onUpdate={fetchOrders}
                 variant="compact"
               />
             </div>
