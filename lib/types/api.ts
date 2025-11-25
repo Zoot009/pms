@@ -81,7 +81,7 @@ export interface AskingTaskDetailed {
     deliveryDate: string
     amount: any
     folderLink: string | null
-  }
+  } | null
   service: {
     id: string
     name: string

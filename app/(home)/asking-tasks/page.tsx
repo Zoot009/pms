@@ -131,10 +131,12 @@ export default function AskingTasksPage() {
       })
       
       // Keep the order expanded so user can see the updated task
-      setOpenOrders(prev => ({
-        ...prev,
-        [selectedTask.order.id]: true
-      }))
+      if (selectedTask.order) {
+        setOpenOrders(prev => ({
+          ...prev,
+          [selectedTask.order!.id]: true
+        }))
+      }
       
       toast.success('Task marked as complete')
       setShowCompleteDialog(false)
@@ -171,14 +173,22 @@ export default function AskingTasksPage() {
 
   // Group tasks by order and separate into pending and completed
   const groupTasksByOrder = () => {
-    const grouped = new Map<string, AskingTaskDetailed[]>()
-    askingTasks.forEach((task) => {
+    type TaskWithOrder = AskingTaskDetailed & { order: NonNullable<AskingTaskDetailed['order']> }
+    const grouped = new Map<string, TaskWithOrder[]>()
+    
+    // Filter out tasks without orders and group by order ID
+    const tasksWithOrders = askingTasks.filter(
+      (task): task is TaskWithOrder => task.order !== null && task.order !== undefined
+    )
+    
+    tasksWithOrders.forEach((task) => {
       const orderId = task.order.id
       if (!grouped.has(orderId)) {
         grouped.set(orderId, [])
       }
       grouped.get(orderId)!.push(task)
     })
+    
     return Array.from(grouped.entries()).map(([orderId, tasks]) => ({
       orderId,
       orderNumber: tasks[0].order.orderNumber,
@@ -649,9 +659,11 @@ export default function AskingTasksPage() {
               <div>
                 <strong>Service:</strong> {selectedTask.service?.name || 'Custom Task'}
               </div>
-              <div>
-                <strong>Order:</strong> #{selectedTask.order.orderNumber}
-              </div>
+              {selectedTask.order && (
+                <div>
+                  <strong>Order:</strong> #{selectedTask.order.orderNumber}
+                </div>
+              )}
             </div>
           )}
           <div className="space-y-4">
