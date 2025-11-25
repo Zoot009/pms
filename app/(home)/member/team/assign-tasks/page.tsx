@@ -125,6 +125,7 @@ export default function AssignTasksPage() {
     try {
       setIsLoading(true)
       const params = new URLSearchParams()
+      params.append('status', 'pending')
       if (selectedAskingServices.length > 0) {
         params.append('completedAskingServices', selectedAskingServices.join(','))
       }
@@ -190,7 +191,9 @@ export default function AssignTasksPage() {
     setSelectedAskingServices([])
     try {
       setIsLoading(true)
-      const ordersResponse = await axios.get('/api/team-leader/orders-with-tasks')
+      const params = new URLSearchParams()
+      params.append('status', 'pending')
+      const ordersResponse = await axios.get(`/api/team-leader/orders-with-tasks?${params}`)
       setOrders(ordersResponse.data.orders)
     } catch (error) {
       console.error('Error fetching data:', error)
