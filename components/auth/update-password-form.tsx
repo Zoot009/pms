@@ -30,12 +30,13 @@ export function UpdatePasswordForm({
   useEffect(() => {
     const initializeSession = async () => {
       try {
-        // Check if there's a hash with tokens in the URL
+        // Check if there's a hash with tokens in the URL (direct email link)
         const hashParams = new URLSearchParams(window.location.hash.substring(1));
         const accessToken = hashParams.get('access_token');
         const refreshToken = hashParams.get('refresh_token');
         
         if (accessToken) {
+          console.log('Found tokens in URL hash, setting session');
           // Set the session using the tokens from the URL
           const { data, error: setSessionError } = await supabase.auth.setSession({
             access_token: accessToken,
@@ -47,16 +48,22 @@ export function UpdatePasswordForm({
             setError(setSessionError.message);
           } else if (!data.session) {
             setError("Failed to establish session. Please request a new password reset link.");
+          } else {
+            console.log('Session established successfully from URL hash');
           }
         } else {
-          // No tokens in URL, check if there's an existing session
+          // No tokens in URL, check if there's an existing session (from confirm route)
+          console.log('No tokens in URL, checking for existing session');
           const { data: { session }, error: sessionError } = await supabase.auth.getSession();
           
           if (sessionError) {
             console.error('Session error:', sessionError);
             setError(sessionError.message);
           } else if (!session) {
+            console.error('No session found');
             setError("No valid session found. Please request a new password reset link.");
+          } else {
+            console.log('Found existing session, user can update password');
           }
         }
       } catch (err) {
