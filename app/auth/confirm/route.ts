@@ -37,8 +37,7 @@ export async function GET(request: NextRequest) {
       // For password recovery, redirect to update-password page
       if (type === 'recovery') {
         console.log('Password recovery confirmed, redirecting to update-password')
-        // Use NextResponse.redirect to maintain session cookies
-        return NextResponse.redirect(`${redirectTo}/auth/update-password`)
+        redirect('/auth/update-password')
       }
       
       // For signup confirmation, sync user with database
