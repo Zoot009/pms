@@ -75,14 +75,25 @@ interface Service {
   timeLimit: number | null
 }
 
+interface ServiceInstance {
+  serviceId: string
+  service: Service
+  targetName?: string
+  targetUrl?: string
+  description?: string
+  instanceId: string // Unique ID for this instance in the UI
+}
+
 export default function NewOrderPage() {
   const router = useRouter()
   const [isLoading, setIsLoading] = useState(false)
   const [orderTypes, setOrderTypes] = useState<OrderType[]>([])
   const [allServices, setAllServices] = useState<Service[]>([])
   const [selectedOrderType, setSelectedOrderType] = useState<OrderType | null>(null)
-  const [selectedServiceIds, setSelectedServiceIds] = useState<string[]>([])
+  const [serviceInstances, setServiceInstances] = useState<ServiceInstance[]>([])
   const [isAddServiceDialogOpen, setIsAddServiceDialogOpen] = useState(false)
+  const [editingInstance, setEditingInstance] = useState<ServiceInstance | null>(null)
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
 
   const form = useForm<OrderFormValues>({
     resolver: zodResolver(orderSchema),
@@ -118,7 +129,7 @@ export default function NewOrderPage() {
             id: ot.id,
             name: ot.name,
             timeLimitDays: ot.timeLimitDays,
-            services: detailsResponse.data.services,
+            services: detailsResponse.data.services.map((s: any) => s.service),
           }
         })
       )
@@ -145,34 +156,70 @@ export default function NewOrderPage() {
   const handleOrderTypeChange = (orderTypeId: string) => {
     const orderType = orderTypes.find((ot) => ot.id === orderTypeId)
     setSelectedOrderType(orderType || null)
-    // Initialize selected services with order type services
+    // Initialize service instances with order type services
     if (orderType) {
-      setSelectedServiceIds(orderType.services.map(s => s.id))
+      setServiceInstances(orderType.services.map(s => ({
+        serviceId: s.id,
+        service: s,
+        instanceId: `${s.id}-${Date.now()}-${Math.random()}`,
+      })))
     } else {
-      setSelectedServiceIds([])
+      setServiceInstances([])
     }
   }
 
-  const handleRemoveService = (serviceId: string) => {
-    setSelectedServiceIds(prev => prev.filter(id => id !== serviceId))
+  const handleRemoveInstance = (instanceId: string) => {
+    setServiceInstances(prev => prev.filter(inst => inst.instanceId !== instanceId))
   }
 
   const handleAddService = (serviceId: string) => {
-    if (!selectedServiceIds.includes(serviceId)) {
-      setSelectedServiceIds(prev => [...prev, serviceId])
+    const service = allServices.find(s => s.id === serviceId)
+    if (service) {
+      setServiceInstances(prev => [...prev, {
+        serviceId: service.id,
+        service: service,
+        instanceId: `${service.id}-${Date.now()}-${Math.random()}`,
+      }])
     }
     setIsAddServiceDialogOpen(false)
   }
 
-  const getSelectedServices = () => {
-    return allServices.filter(s => selectedServiceIds.includes(s.id))
+  const handleEditInstance = (instance: ServiceInstance) => {
+    setEditingInstance(instance)
+    setIsEditDialogOpen(true)
+  }
+
+  const handleSaveInstanceDetails = (instanceId: string, details: { targetName?: string; targetUrl?: string; description?: string }) => {
+    setServiceInstances(prev => prev.map(inst => 
+      inst.instanceId === instanceId 
+        ? { ...inst, ...details }
+        : inst
+    ))
+    setIsEditDialogOpen(false)
+    setEditingInstance(null)
   }
 
   const isCustomized = () => {
     if (!selectedOrderType) return false
     const originalServiceIds = selectedOrderType.services.map(s => s.id).sort()
-    const currentServiceIds = [...selectedServiceIds].sort()
-    return JSON.stringify(originalServiceIds) !== JSON.stringify(currentServiceIds)
+    const currentServiceIds = [...new Set(serviceInstances.map(i => i.serviceId))].sort()
+    
+    // Check if service IDs are different
+    if (JSON.stringify(originalServiceIds) !== JSON.stringify(currentServiceIds)) {
+      return true
+    }
+    
+    // Check if any instances have been added (duplicates)
+    const serviceCounts = serviceInstances.reduce((acc, inst) => {
+      acc[inst.serviceId] = (acc[inst.serviceId] || 0) + 1
+      return acc
+    }, {} as Record<string, number>)
+    
+    if (Object.values(serviceCounts).some(count => count > 1)) {
+      return true
+    }
+    
+    return false
   }
 
   const onSubmit = async (data: OrderFormValues) => {
@@ -192,8 +239,14 @@ export default function NewOrderPage() {
         deliveryDate: new Date(deliveryDate).toISOString(),
         deliveryTime: deliveryTime,
         notes: data.notes || null,
-        customServiceIds: selectedServiceIds, // Send selected service IDs
-        isCustomized: isCustomized(), // Flag if customized
+        serviceInstances: serviceInstances.map(inst => ({
+          serviceId: inst.serviceId,
+          service: inst.service,
+          targetName: inst.targetName || null,
+          targetUrl: inst.targetUrl || null,
+          description: inst.description || null,
+        })),
+        isCustomized: isCustomized(),
       }
 
       await axios.post('/api/admin/orders', payload)
@@ -439,42 +492,35 @@ export default function NewOrderPage() {
                         </DialogDescription>
                       </DialogHeader>
                       <div className="space-y-2 mt-4">
-                        {allServices
-                          .filter(s => !selectedServiceIds.includes(s.id))
-                          .map((service) => (
-                            <div
-                              key={service.id}
-                              className="p-3 border rounded-lg hover:bg-accent cursor-pointer"
-                              onClick={() => handleAddService(service.id)}
-                            >
-                              <div className="flex items-start justify-between gap-2">
-                                <div className="flex-1">
-                                  <div className="font-medium text-sm">{service.name}</div>
-                                  <div className="text-xs text-muted-foreground space-y-1 mt-1">
-                                    <div className="flex items-center gap-2">
-                                      <Badge variant="outline" className="text-xs">
-                                        {service.type.replace('_', ' ')}
-                                      </Badge>
-                                      {service.team && (
-                                        <span>Team: {service.team.name}</span>
-                                      )}
-                                    </div>
-                                    {service.timeLimit && (
-                                      <div>Time: {service.timeLimit}h</div>
+                        {allServices.map((service) => (
+                          <div
+                            key={service.id}
+                            className="p-3 border rounded-lg hover:bg-accent cursor-pointer"
+                            onClick={() => handleAddService(service.id)}
+                          >
+                            <div className="flex items-start justify-between gap-2">
+                              <div className="flex-1">
+                                <div className="font-medium text-sm">{service.name}</div>
+                                <div className="text-xs text-muted-foreground space-y-1 mt-1">
+                                  <div className="flex items-center gap-2">
+                                    <Badge variant="outline" className="text-xs">
+                                      {service.type.replace('_', ' ')}
+                                    </Badge>
+                                    {service.team && (
+                                      <span>Team: {service.team.name}</span>
                                     )}
                                   </div>
+                                  {service.timeLimit && (
+                                    <div>Time: {service.timeLimit}h</div>
+                                  )}
                                 </div>
-                                <Button size="sm" variant="ghost">
-                                  <Plus className="h-4 w-4" />
-                                </Button>
                               </div>
+                              <Button size="sm" variant="ghost">
+                                <Plus className="h-4 w-4" />
+                              </Button>
                             </div>
-                          ))}
-                        {allServices.filter(s => !selectedServiceIds.includes(s.id)).length === 0 && (
-                          <p className="text-sm text-muted-foreground text-center py-8">
-                            All available services have been added
-                          </p>
-                        )}
+                          </div>
+                        ))}
                       </div>
                     </DialogContent>
                   </Dialog>
@@ -486,7 +532,7 @@ export default function NewOrderPage() {
                 <p className="text-sm text-muted-foreground">
                   Select an order type to view and customize services
                 </p>
-              ) : getSelectedServices().length === 0 ? (
+              ) : serviceInstances.length === 0 ? (
                 <div className="text-center py-6">
                   <p className="text-sm text-muted-foreground mb-3">
                     No services selected
@@ -500,8 +546,8 @@ export default function NewOrderPage() {
                 <div className="space-y-3">
                   <div className="flex items-center justify-between text-sm">
                     <div className="font-medium">
-                      {getSelectedServices().length} service
-                      {getSelectedServices().length !== 1 ? 's' : ''}
+                      {serviceInstances.length} service instance
+                      {serviceInstances.length !== 1 ? 's' : ''}
                       {isCustomized() && (
                         <Badge variant="secondary" className="ml-2">
                           Customized
@@ -510,44 +556,128 @@ export default function NewOrderPage() {
                     </div>
                   </div>
                   <div className="space-y-2">
-                    {getSelectedServices().map((service) => (
+                    {serviceInstances.map((instance) => (
                       <div
-                        key={service.id}
+                        key={instance.instanceId}
                         className="p-3 border rounded-lg space-y-1 group relative"
                       >
                         <div className="flex items-start justify-between gap-2">
                           <div className="flex-1">
-                            <div className="font-medium text-sm">{service.name}</div>
+                            <div className="font-medium text-sm">{instance.service.name}</div>
+                            {instance.targetName && (
+                              <div className="text-sm text-blue-600 mt-1">
+                                Target: {instance.targetName}
+                              </div>
+                            )}
+                            {instance.targetUrl && (
+                              <div className="text-xs text-muted-foreground truncate">
+                                {instance.targetUrl}
+                              </div>
+                            )}
+                            {instance.description && (
+                              <div className="text-xs text-muted-foreground mt-1">
+                                {instance.description}
+                              </div>
+                            )}
                             <div className="text-xs text-muted-foreground space-y-1 mt-1">
                               <div className="flex items-center gap-2">
                                 <Badge variant="outline" className="text-xs">
-                                  {service.type.replace('_', ' ')}
+                                  {instance.service.type.replace('_', ' ')}
                                 </Badge>
-                                {service.team && (
-                                  <span>Team: {service.team.name}</span>
+                                {instance.service.team && (
+                                  <span>Team: {instance.service.team.name}</span>
                                 )}
                               </div>
-                              {service.timeLimit && (
-                                <div>Time: {service.timeLimit}h</div>
+                              {instance.service.timeLimit && (
+                                <div>Time: {instance.service.timeLimit}h</div>
                               )}
                             </div>
                           </div>
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            className="h-8 w-8 p-0 opacity-0 group-hover:opacity-100 transition-opacity"
-                            onClick={() => handleRemoveService(service.id)}
-                          >
-                            <X className="h-4 w-4 text-destructive" />
-                          </Button>
+                          <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="h-8 w-8 p-0"
+                              onClick={() => handleEditInstance(instance)}
+                            >
+                              <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                              </svg>
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="h-8 w-8 p-0"
+                              onClick={() => handleRemoveInstance(instance.instanceId)}
+                            >
+                              <X className="h-4 w-4 text-destructive" />
+                            </Button>
+                          </div>
                         </div>
                       </div>
                     ))}
                   </div>
                   <div className="pt-2 text-xs text-muted-foreground">
-                    Tasks will be auto-created for each service upon order creation
+                    Tasks will be auto-created for each service instance upon order creation
                   </div>
                 </div>
+              )}
+
+              {/* Edit Instance Dialog */}
+              {editingInstance && (
+                <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+                  <DialogContent>
+                    <DialogHeader>
+                      <DialogTitle>Edit Service Instance</DialogTitle>
+                      <DialogDescription>
+                        Add details to differentiate this instance of {editingInstance.service.name}
+                      </DialogDescription>
+                    </DialogHeader>
+                    <div className="space-y-4 mt-4">
+                      <div>
+                        <label className="text-sm font-medium">Target Name</label>
+                        <Input
+                          id="edit-target-name"
+                          placeholder="e.g., Main Website, Blog Site"
+                          defaultValue={editingInstance.targetName || ''}
+                          className="mt-1"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-sm font-medium">Target URL</label>
+                        <Input
+                          id="edit-target-url"
+                          placeholder="e.g., https://example.com"
+                          defaultValue={editingInstance.targetUrl || ''}
+                          className="mt-1"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-sm font-medium">Description</label>
+                        <Textarea
+                          id="edit-description"
+                          placeholder="Add any specific notes..."
+                          defaultValue={editingInstance.description || ''}
+                          className="mt-1"
+                        />
+                      </div>
+                      <Button
+                        onClick={() => {
+                          const targetName = (document.getElementById('edit-target-name') as HTMLInputElement)?.value
+                          const targetUrl = (document.getElementById('edit-target-url') as HTMLInputElement)?.value
+                          const description = (document.getElementById('edit-description') as HTMLTextAreaElement)?.value
+                          handleSaveInstanceDetails(editingInstance.instanceId, {
+                            targetName: targetName || undefined,
+                            targetUrl: targetUrl || undefined,
+                            description: description || undefined,
+                          })
+                        }}
+                      >
+                        Save Changes
+                      </Button>
+                    </div>
+                  </DialogContent>
+                </Dialog>
               )}
             </CardContent>
           </Card>

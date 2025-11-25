@@ -115,6 +115,11 @@ export default function OrderDetailPage() {
   const [isLoading, setIsLoading] = useState(true)
   const [isAssigning, setIsAssigning] = useState(false)
   const [selectedTask, setSelectedTask] = useState<Task | null>(null)
+  const [isBulkAssignOpen, setIsBulkAssignOpen] = useState(false)
+  const [bulkSelectedMember, setBulkSelectedMember] = useState('')
+  const [bulkSelectedTasks, setBulkSelectedTasks] = useState<string[]>([])
+  const [bulkDeadline, setBulkDeadline] = useState('')
+  const [isBulkAssigning, setIsBulkAssigning] = useState(false)
   const [assignmentData, setAssignmentData] = useState({
     memberId: '',
     deadline: '',
@@ -211,6 +216,93 @@ export default function OrderDetailPage() {
       }
     } finally {
       setIsAssigning(false)
+    }
+  }
+
+  const openBulkAssignDialog = () => {
+    setIsBulkAssignOpen(true)
+    setBulkSelectedMember('')
+    setBulkSelectedTasks([])
+    // Set default deadline to order delivery date
+    setBulkDeadline(order?.deliveryDate 
+      ? new Date(order.deliveryDate).toISOString().split('T')[0]
+      : ''
+    )
+  }
+
+  const closeBulkAssignDialog = () => {
+    setIsBulkAssignOpen(false)
+    setBulkSelectedMember('')
+    setBulkSelectedTasks([])
+    setBulkDeadline('')
+  }
+
+  const getAssignableTasks = () => {
+    if (!order) return []
+    return order.tasks.filter(task => 
+      task.status === 'NOT_ASSIGNED' && canAssignTask(task)
+    )
+  }
+
+  const toggleTaskSelection = (taskId: string) => {
+    setBulkSelectedTasks(prev =>
+      prev.includes(taskId)
+        ? prev.filter(id => id !== taskId)
+        : [...prev, taskId]
+    )
+  }
+
+  const toggleAllTasks = () => {
+    const assignableTasks = getAssignableTasks()
+    if (bulkSelectedTasks.length === assignableTasks.length) {
+      setBulkSelectedTasks([])
+    } else {
+      setBulkSelectedTasks(assignableTasks.map(t => t.id))
+    }
+  }
+
+  const handleBulkAssign = async () => {
+    if (!bulkSelectedMember) {
+      toast.error('Please select a team member')
+      return
+    }
+
+    if (bulkSelectedTasks.length === 0) {
+      toast.error('Please select at least one task')
+      return
+    }
+
+    if (!bulkDeadline) {
+      toast.error('Please set a deadline')
+      return
+    }
+
+    setIsBulkAssigning(true)
+    try {
+      // Assign each task
+      await Promise.all(
+        bulkSelectedTasks.map(taskId =>
+          axios.post(`/api/team-leader/tasks/${taskId}/assign`, {
+            assignedTo: bulkSelectedMember,
+            deadline: bulkDeadline,
+            priority: 'MEDIUM',
+            notes: 'Bulk assigned',
+          })
+        )
+      )
+
+      toast.success(`Successfully assigned ${bulkSelectedTasks.length} task(s)`)
+      closeBulkAssignDialog()
+      fetchData() // Refresh data
+    } catch (error) {
+      console.error('Error bulk assigning tasks:', error)
+      if (axios.isAxiosError(error)) {
+        toast.error(error.response?.data?.message || 'Failed to assign tasks')
+      } else {
+        toast.error('An unexpected error occurred')
+      }
+    } finally {
+      setIsBulkAssigning(false)
     }
   }
 
@@ -406,8 +498,18 @@ export default function OrderDetailPage() {
         {assignableTasks.length > 0 && (
           <Card>
             <CardHeader>
-              <CardTitle>Your Team's Tasks ({assignableTasks.length})</CardTitle>
-              <CardDescription>Tasks that you can assign to your team members</CardDescription>
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle>Your Team's Tasks ({assignableTasks.length})</CardTitle>
+                  <CardDescription>Tasks that you can assign to your team members</CardDescription>
+                </div>
+                {taskCounts.unassigned > 0 && (
+                  <Button onClick={openBulkAssignDialog} variant="outline">
+                    <Users className="h-4 w-4 mr-2" />
+                    Bulk Assign
+                  </Button>
+                )}
+              </div>
             </CardHeader>
             <CardContent className="space-y-4">
               {assignableTasks.map((task) => (
@@ -630,6 +732,163 @@ export default function OrderDetailPage() {
                   </>
                 ) : (
                   'Assign Task'
+                )}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Bulk Assignment Dialog */}
+        <Dialog open={isBulkAssignOpen} onOpenChange={(open) => !open && closeBulkAssignDialog()}>
+          <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>Bulk Assign Tasks</DialogTitle>
+              <DialogDescription>
+                Assign multiple tasks to a team member at once
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="space-y-4">
+              {/* Team Member Selection */}
+              <div>
+                <Label>Select Team Member *</Label>
+                <Select
+                  value={bulkSelectedMember}
+                  onValueChange={setBulkSelectedMember}
+                >
+                  <SelectTrigger className="mt-1">
+                    <SelectValue placeholder="Choose a team member" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {teamMembers.map((member) => (
+                      <SelectItem key={member.id} value={member.id}>
+                        <div className="flex items-center justify-between w-full gap-4">
+                          <span>{member.displayName || member.email}</span>
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs text-muted-foreground">
+                              {member.activeTasksCount} active
+                            </span>
+                            {getWorkloadBadge(member.workloadLevel)}
+                          </div>
+                        </div>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <Separator />
+
+              {/* Deadline Selection */}
+              <div>
+                <Label>Deadline *</Label>
+                <Input
+                  type="datetime-local"
+                  value={bulkDeadline}
+                  onChange={(e) => setBulkDeadline(e.target.value)}
+                  min={order?.orderDate ? getMinDeadline(order.orderDate) : undefined}
+                  max={order?.deliveryDate && order?.deliveryTime 
+                    ? getMaxDeadline(order.deliveryDate, order.deliveryTime)
+                    : undefined
+                  }
+                  className="mt-1"
+                />
+                <p className="text-xs text-muted-foreground mt-1">
+                  Set a deadline for all selected tasks (must be before delivery date)
+                </p>
+              </div>
+
+              <Separator />
+
+              {/* Task Selection */}
+              <div>
+                <div className="flex items-center justify-between mb-3">
+                  <Label>Select Tasks ({bulkSelectedTasks.length} selected)</Label>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={toggleAllTasks}
+                  >
+                    {bulkSelectedTasks.length === getAssignableTasks().length ? 'Deselect All' : 'Select All'}
+                  </Button>
+                </div>
+
+                <div className="space-y-2 max-h-[400px] overflow-y-auto border rounded-lg p-3">
+                  {getAssignableTasks().length === 0 ? (
+                    <div className="text-center py-8 text-muted-foreground">
+                      No unassigned tasks available
+                    </div>
+                  ) : (
+                    getAssignableTasks().map((task) => (
+                      <div
+                        key={task.id}
+                        className={`p-3 border rounded-lg cursor-pointer transition-colors ${
+                          bulkSelectedTasks.includes(task.id)
+                            ? 'bg-primary/5 border-primary'
+                            : 'hover:bg-muted/50'
+                        }`}
+                        onClick={() => toggleTaskSelection(task.id)}
+                      >
+                        <div className="flex items-start gap-3">
+                          <input
+                            type="checkbox"
+                            checked={bulkSelectedTasks.includes(task.id)}
+                            onChange={() => toggleTaskSelection(task.id)}
+                            className="mt-1 h-4 w-4"
+                            onClick={(e) => e.stopPropagation()}
+                          />
+                          <div className="flex-1">
+                            <div className="flex items-start justify-between gap-2">
+                              <div>
+                                <div className="font-medium text-sm">{task.title}</div>
+                                <div className="text-xs text-muted-foreground mt-1">
+                                  {task.service.name}
+                                  {task.service.timeLimit && ` · ${task.service.timeLimit}h time limit`}
+                                </div>
+                              </div>
+                              <div className="flex gap-1">
+                                {getStatusBadge(task.status)}
+                                {getPriorityBadge(task.priority)}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+
+                {bulkSelectedTasks.length > 0 && bulkDeadline && (
+                  <div className="mt-3 p-3 bg-muted rounded-lg">
+                    <div className="flex items-center gap-2 text-sm">
+                      <AlertCircle className="h-4 w-4 text-blue-500" />
+                      <span>
+                        {bulkSelectedTasks.length} task{bulkSelectedTasks.length !== 1 ? 's' : ''} will be assigned with deadline:{' '}
+                        <strong>
+                          {format(new Date(bulkDeadline), 'MMM d, yyyy, h:mm a')}
+                        </strong>
+                      </span>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <DialogFooter>
+              <Button variant="outline" onClick={closeBulkAssignDialog} disabled={isBulkAssigning}>
+                Cancel
+              </Button>
+              <Button
+                onClick={handleBulkAssign}
+                disabled={isBulkAssigning || !bulkSelectedMember || bulkSelectedTasks.length === 0 || !bulkDeadline}
+              >
+                {isBulkAssigning ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Assigning...
+                  </>
+                ) : (
+                  `Assign ${bulkSelectedTasks.length} Task${bulkSelectedTasks.length !== 1 ? 's' : ''}`
                 )}
               </Button>
             </DialogFooter>

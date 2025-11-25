@@ -316,19 +316,24 @@ model Order {
 }
 
 model OrderService {
-  id        String   @id @default(cuid())
-  orderId   String   @map("order_id")
-  serviceId String   @map("service_id")
-  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+  id                  String   @id @default(cuid())
+  orderId             String   @map("order_id")
+  serviceId           String   @map("service_id")
+  description         String?  @db.Text // General description for this service instance
+  targetName          String?  @map("target_name") @db.VarChar(500) // e.g., "Website 1", "Main Site"
+  targetUrl           String?  @map("target_url") @db.VarChar(1000) // e.g., "https://example.com"
+  createdAt           DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt           DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   // Relations
-  order   Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  service Service @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+  order        Order        @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  service      Service      @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+  tasks        Task[]
+  askingTasks  AskingTask[]
 
-  @@unique([orderId, serviceId])
   @@index([orderId])
   @@index([serviceId])
+  @@index([orderId, serviceId])
   @@map("order_services")
 }
 
@@ -337,33 +342,36 @@ model OrderService {
 // ============================================
 
 model Task {
-  id          String       @id @default(cuid())
-  orderId     String       @map("order_id")
-  serviceId   String?      @map("service_id")
-  teamId      String       @map("team_id")
-  title       String       @db.VarChar(500)
-  description String?      @db.Text
-  notes       String?      @db.Text
-  assignedTo  String?      @map("assigned_to") @db.VarChar(255)
-  priority    TaskPriority @default(MEDIUM)
-  status      TaskStatus   @default(NOT_ASSIGNED)
-  deadline    DateTime?    @db.Timestamptz(6)
-  startedAt   DateTime?    @map("started_at") @db.Timestamptz(6)
-  completedAt DateTime?    @map("completed_at") @db.Timestamptz(6)
-  isMandatory Boolean      @default(false) @map("is_mandatory")
-  createdById String?      @map("created_by") @db.VarChar(255)
-  createdAt   DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt   DateTime     @updatedAt @map("updated_at") @db.Timestamptz(6)
-  metadata    Json?
+  id               String       @id @default(cuid())
+  orderId          String       @map("order_id")
+  orderServiceId   String?      @map("order_service_id") // Links to specific service instance
+  serviceId        String?      @map("service_id")
+  teamId           String       @map("team_id")
+  title            String       @db.VarChar(500)
+  description      String?      @db.Text
+  notes            String?      @db.Text
+  assignedTo       String?      @map("assigned_to") @db.VarChar(255)
+  priority         TaskPriority @default(MEDIUM)
+  status           TaskStatus   @default(NOT_ASSIGNED)
+  deadline         DateTime?    @db.Timestamptz(6)
+  startedAt        DateTime?    @map("started_at") @db.Timestamptz(6)
+  completedAt      DateTime?    @map("completed_at") @db.Timestamptz(6)
+  isMandatory      Boolean      @default(false) @map("is_mandatory")
+  createdById      String?      @map("created_by") @db.VarChar(255)
+  createdAt        DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt        DateTime     @updatedAt @map("updated_at") @db.Timestamptz(6)
+  metadata         Json?
 
   // Relations
-  order      Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  service    Service? @relation(fields: [serviceId], references: [id])
-  team       Team     @relation(fields: [teamId], references: [id])
-  assignedUser User?  @relation("TaskAssignedTo", fields: [assignedTo], references: [id])
-  createdBy  User?    @relation("TaskCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  order          Order         @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  orderService   OrderService? @relation(fields: [orderServiceId], references: [id], onDelete: Cascade)
+  service        Service?      @relation(fields: [serviceId], references: [id])
+  team           Team          @relation(fields: [teamId], references: [id])
+  assignedUser   User?         @relation("TaskAssignedTo", fields: [assignedTo], references: [id])
+  createdBy      User?         @relation("TaskCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
 
   @@index([orderId, status])
+  @@index([orderServiceId])
   @@index([serviceId])
   @@index([teamId, status])
   @@index([assignedTo, status])
@@ -377,6 +385,7 @@ model Task {
 model AskingTask {
   id                    String          @id @default(cuid())
   orderId               String          @map("order_id")
+  orderServiceId        String?         @map("order_service_id") // Links to specific service instance
   serviceId             String          @map("service_id")
   teamId                String          @map("team_id")
   title                 String          @db.VarChar(500)
@@ -397,6 +406,7 @@ model AskingTask {
 
   // Relations
   order         Order                @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  orderService  OrderService?        @relation(fields: [orderServiceId], references: [id], onDelete: Cascade)
   service       Service              @relation(fields: [serviceId], references: [id])
   team          Team                 @relation(fields: [teamId], references: [id])
   assignedUser  User?                @relation("AskingTaskAssignedTo", fields: [assignedTo], references: [id])
@@ -405,6 +415,7 @@ model AskingTask {
   stageHistory  AskingTaskStage[]
 
   @@index([orderId, currentStage])
+  @@index([orderServiceId])
   @@index([serviceId])
   @@index([teamId, currentStage])
   @@index([assignedTo, currentStage])

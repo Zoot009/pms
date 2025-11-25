@@ -85,6 +85,9 @@ interface Order {
   }
   services: Array<{
     id: string
+    description: string | null
+    targetName: string | null
+    targetUrl: string | null
     service: {
       id: string
       name: string
@@ -547,12 +550,29 @@ export default function OrderDetailPage() {
                 {order.services.map((os) => (
                   <div key={os.id} className="p-3 border rounded-lg space-y-1">
                     <div className="flex items-start justify-between gap-2">
-                      <div className="font-medium text-sm">{os.service.name}</div>
+                      <div className="flex-1">
+                        <div className="font-medium text-sm">{os.service.name}</div>
+                        {os.targetName && (
+                          <div className="text-sm text-blue-600 mt-1">
+                            Target: {os.targetName}
+                          </div>
+                        )}
+                        {os.targetUrl && (
+                          <div className="text-xs text-muted-foreground truncate mt-0.5">
+                            {os.targetUrl}
+                          </div>
+                        )}
+                        {os.description && (
+                          <div className="text-xs text-muted-foreground mt-1">
+                            {os.description}
+                          </div>
+                        )}
+                      </div>
                       <Badge variant="outline" className="text-xs">
                         {os.service.type.replace('_', ' ')}
                       </Badge>
                     </div>
-                    <div className="text-xs text-muted-foreground space-y-1">
+                    <div className="text-xs text-muted-foreground space-y-1 mt-2">
                       {os.service.team && <div>Team: {os.service.team.name}</div>}
                       {os.service.timeLimit && <div>Time: {os.service.timeLimit}h</div>}
                     </div>

@@ -113,7 +113,8 @@ export async function POST(req: NextRequest) {
       deliveryDate,
       deliveryTime,
       notes,
-      customServiceIds, // Array of service IDs if customized
+      customServiceIds, // Array of service IDs if customized (legacy support)
+      serviceInstances, // Array of service instances with metadata
       isCustomized, // Boolean flag
     } = body
 
@@ -185,14 +186,16 @@ export async function POST(req: NextRequest) {
       })
 
       // Determine which services to use
-      let servicesToCreate: any[] = orderType.services
+      let servicesToCreate: any[] = []
 
-      if (isCustomized && customServiceIds && Array.isArray(customServiceIds)) {
-        // Filter out null/undefined values from customServiceIds
+      if (serviceInstances && Array.isArray(serviceInstances) && serviceInstances.length > 0) {
+        // New format: service instances with metadata
+        servicesToCreate = serviceInstances
+      } else if (isCustomized && customServiceIds && Array.isArray(customServiceIds)) {
+        // Legacy format: just service IDs
         const validServiceIds = customServiceIds.filter(id => id !== null && id !== undefined && id !== '')
         
         if (validServiceIds.length > 0) {
-          // Fetch the custom services
           const customServices = await tx.service.findMany({
             where: {
               id: { in: validServiceIds },
@@ -200,45 +203,79 @@ export async function POST(req: NextRequest) {
             },
           })
 
-          // Map to match the structure expected below
           servicesToCreate = customServices.map(s => ({
             serviceId: s.id,
             service: s,
           }))
         }
+      } else {
+        // Default: use order type services
+        servicesToCreate = orderType.services
       }
 
-      // Create OrderService records for each service
+      // Create OrderService records for each service instance
       if (servicesToCreate.length > 0) {
-        await tx.orderService.createMany({
-          data: servicesToCreate.map((os: any) => ({
-            orderId: newOrder.id,
-            serviceId: os.serviceId || os.service.id,
-          })),
-        })
+        const orderServiceRecords = await Promise.all(
+          servicesToCreate.map(async (instance: any) => {
+            const serviceId = instance.serviceId || instance.service?.id || instance.id
+            
+            return tx.orderService.create({
+              data: {
+                orderId: newOrder.id,
+                serviceId: serviceId,
+                description: instance.description || null,
+                targetName: instance.targetName || null,
+                targetUrl: instance.targetUrl || null,
+              },
+            })
+          })
+        )
 
         // Separate regular tasks and asking services
-        const regularServices = servicesToCreate.filter((os: any) => {
-          const service = os.service || os
+        const regularServiceInstances = orderServiceRecords.filter((os: any, index: number) => {
+          const instance = servicesToCreate[index]
+          const service = instance.service || instance
           return service.type === 'SERVICE_TASK'
         })
-        const askingServices = servicesToCreate.filter((os: any) => {
-          const service = os.service || os
+        const askingServiceInstances = orderServiceRecords.filter((os: any, index: number) => {
+          const instance = servicesToCreate[index]
+          const service = instance.service || instance
           return service.type === 'ASKING_SERVICE'
         })
 
         // Create regular tasks for SERVICE_TASK type
-        if (regularServices.length > 0) {
-          const taskData = regularServices.map((os: any) => {
-            const service = os.service || os
-            return {
-              orderId: newOrder.id,
-              serviceId: service.id,
-              teamId: service.teamId,
-              title: `${service.name} - ${newOrder.orderNumber}`,
-              status: 'NOT_ASSIGNED' as const,
-            }
-          })
+        if (regularServiceInstances.length > 0) {
+          const taskData = await Promise.all(
+            regularServiceInstances.map(async (orderService: any) => {
+              const instance = servicesToCreate.find((s: any) => 
+                (s.serviceId || s.service?.id || s.id) === orderService.serviceId
+              )
+              const service = instance?.service || instance
+              const taskTitle = orderService.targetName 
+                ? `${service.name} - ${orderService.targetName}`
+                : `${service.name} - ${newOrder.orderNumber}`
+
+              // Fetch full service details if teamId is missing
+              let teamId = service.teamId
+              if (!teamId) {
+                const fullService = await tx.service.findUnique({
+                  where: { id: orderService.serviceId },
+                  select: { teamId: true }
+                })
+                teamId = fullService?.teamId
+              }
+
+              return {
+                orderId: newOrder.id,
+                orderServiceId: orderService.id,
+                serviceId: orderService.serviceId,
+                teamId: teamId!,
+                title: taskTitle,
+                description: orderService.description || null,
+                status: 'NOT_ASSIGNED' as const,
+              }
+            })
+          )
 
           await tx.task.createMany({
             data: taskData,
@@ -246,16 +283,34 @@ export async function POST(req: NextRequest) {
         }
 
         // Create asking tasks for ASKING_SERVICE type
-        if (askingServices.length > 0) {
-          for (const os of askingServices) {
-            const service = (os as any).service || os
+        if (askingServiceInstances.length > 0) {
+          for (const orderService of askingServiceInstances) {
+            const instance = servicesToCreate.find((s: any) => 
+              (s.serviceId || s.service?.id || s.id) === orderService.serviceId
+            )
+            const service = instance?.service || instance
+            const taskTitle = orderService.targetName 
+              ? `${service.name} - ${orderService.targetName}`
+              : `${service.name} - ${newOrder.orderNumber}`
+
+            // Fetch full service details if teamId is missing
+            let teamId = service.teamId
+            if (!teamId) {
+              const fullService = await tx.service.findUnique({
+                where: { id: orderService.serviceId },
+                select: { teamId: true }
+              })
+              teamId = fullService?.teamId
+            }
+
             await tx.askingTask.create({
               data: {
                 orderId: newOrder.id,
-                serviceId: service.id,
-                teamId: service.teamId,
-                title: `${service.name} - ${newOrder.orderNumber}`,
-                description: `Asking service for order ${newOrder.orderNumber}`,
+                orderServiceId: orderService.id,
+                serviceId: orderService.serviceId,
+                teamId: teamId!,
+                title: taskTitle,
+                description: orderService.description || `Asking service for order ${newOrder.orderNumber}`,
                 currentStage: 'ASKED',
                 priority: 'MEDIUM',
               },
