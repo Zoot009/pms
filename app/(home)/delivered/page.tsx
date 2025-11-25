@@ -1,6 +1,7 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
+import { useQuery } from '@tanstack/react-query'
 import axios from 'axios'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -90,9 +91,6 @@ interface Order {
 }
 
 export default function DeliveredPage() {
-  const [orders, setOrders] = useState<Order[]>([])
-  const [filteredOrders, setFilteredOrders] = useState<Order[]>([])
-  const [isLoading, setIsLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
   const [expandedOrders, setExpandedOrders] = useState<Record<string, boolean>>({})
   
@@ -102,37 +100,28 @@ export default function DeliveredPage() {
   const [sortBy, setSortBy] = useState<string>('completedAt-desc')
   const [deliveryStatus, setDeliveryStatus] = useState<string>('all')
 
-  useEffect(() => {
-    fetchOrders()
-  }, [])
-
-  useEffect(() => {
-    applyFilters()
-  }, [orders, searchQuery, dateFrom, dateTo, sortBy, deliveryStatus])
-
-  const fetchOrders = async () => {
-    try {
-      setIsLoading(true)
+  // Fetch delivered orders with React Query
+  const { data: ordersData, isLoading } = useQuery({
+    queryKey: ['orders', 'delivered'],
+    queryFn: async () => {
       const response = await axios.get('/api/orders/delivered')
-      setOrders(response.data.orders)
-    } catch (error) {
-      console.error('Error fetching delivered orders:', error)
-      toast.error('Failed to load delivered orders')
-    } finally {
-      setIsLoading(false)
-    }
-  }
+      return response.data.orders as Order[]
+    },
+  })
 
-  const applyFilters = () => {
+  const orders = ordersData ?? []
+
+  // Apply filters with memoization
+  const filteredOrders = useMemo(() => {
     let filtered = [...orders]
 
-    // Search filter
+    // Search filter - fix null email error
     if (searchQuery.trim()) {
       const query = searchQuery.toLowerCase()
       filtered = filtered.filter(order =>
         order.orderNumber.toLowerCase().includes(query) ||
         order.customerName.toLowerCase().includes(query) ||
-        order.customerEmail.toLowerCase().includes(query)
+        (order.customerEmail?.toLowerCase() || '').includes(query)
       )
     }
 
@@ -171,8 +160,8 @@ export default function DeliveredPage() {
       }
     })
 
-    setFilteredOrders(filtered)
-  }
+    return filtered
+  }, [orders, searchQuery, dateFrom, dateTo, sortBy, deliveryStatus])
 
   const clearFilters = () => {
     setSearchQuery('')
