@@ -1,7 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
-import axios from 'axios'
+import { useState, useEffect, useMemo } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -50,184 +49,94 @@ import {
 import { format } from 'date-fns'
 import { toast } from 'sonner'
 import { StageDetailsModal } from '@/components/stage-details-modal'
-
-interface AskingTask {
-  id: string
-  title: string
-  currentStage: string
-  priority: string
-  deadline: string | null
-  isFlagged: boolean
-  completedAt: string | null
-  order: {
-    id: string
-    orderNumber: string
-    customerName: string
-    deliveryDate: string
-    amount: any // Prisma Decimal type
-    folderLink: string | null
-  }
-  service: {
-    id: string
-    name: string
-  }
-  team: {
-    id: string
-    name: string
-  }
-  assignedUser: {
-    id: string
-    email: string
-    displayName: string | null
-  } | null
-  completedUser: {
-    id: string
-    email: string
-    displayName: string | null
-  } | null
-}
+import { useAskingTasks, useCompleteAskingTask, useFlagAskingTask } from '@/hooks/queries/use-asking-tasks'
+import type { AskingTaskDetailed } from '@/lib/types/api'
 
 export default function AskingTasksPage() {
-  const [askingTasks, setAskingTasks] = useState<AskingTask[]>([])
-  const [isLoading, setIsLoading] = useState(true)
-  const [isLoadingMore, setIsLoadingMore] = useState(false)
-  const [hasMore, setHasMore] = useState(true)
-  const [page, setPage] = useState(1)
   const [statusFilter, setStatusFilter] = useState('all')
   const [flaggedFilter, setFlaggedFilter] = useState('all')
   const [stageFilter, setStageFilter] = useState('all')
   const [searchQuery, setSearchQuery] = useState('')
+  const [debouncedSearch, setDebouncedSearch] = useState('')
   const [openOrders, setOpenOrders] = useState<Record<string, boolean>>({})
   const [activeTab, setActiveTab] = useState<'pending' | 'completed'>('pending')
   
   // Complete dialog state
   const [showCompleteDialog, setShowCompleteDialog] = useState(false)
-  const [selectedTask, setSelectedTask] = useState<AskingTask | null>(null)
+  const [selectedTask, setSelectedTask] = useState<AskingTaskDetailed | null>(null)
   const [completionNotes, setCompletionNotes] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
 
   // Stage details modal state
   const [showStageModal, setShowStageModal] = useState(false)
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null)
-  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState('')
 
   // Debounce search query
   useEffect(() => {
     const timer = setTimeout(() => {
-      setDebouncedSearchQuery(searchQuery)
+      setDebouncedSearch(searchQuery)
     }, 500)
-
     return () => clearTimeout(timer)
   }, [searchQuery])
 
-  useEffect(() => {
-    setPage(1)
-    setAskingTasks([])
-    setHasMore(true)
-    fetchAskingTasks(1, true)
-  }, [statusFilter, flaggedFilter, stageFilter, activeTab, debouncedSearchQuery])
+  // Fetch asking tasks with React Query
+  const {
+    data,
+    isLoading,
+    isFetchingNextPage,
+    hasNextPage,
+    fetchNextPage,
+  } = useAskingTasks({
+    status: activeTab === 'completed' ? 'completed' : statusFilter,
+    flagged: flaggedFilter,
+    stage: stageFilter,
+    search: debouncedSearch,
+    limit: 20,
+  })
 
+  // Mutations
+  const completeTaskMutation = useCompleteAskingTask()
+  const flagTaskMutation = useFlagAskingTask()
+
+  // Flatten all pages of tasks
+  const askingTasks = useMemo(() => {
+    return data?.pages.flatMap((page) => page.tasks) ?? []
+  }, [data])
+
+  // Infinite scroll effect
   useEffect(() => {
     const handleScroll = () => {
       if (
         window.innerHeight + document.documentElement.scrollTop
         >= document.documentElement.offsetHeight - 1000 &&
-        !isLoadingMore &&
-        hasMore
+        !isFetchingNextPage &&
+        hasNextPage
       ) {
-        loadMoreTasks()
+        fetchNextPage()
       }
     }
 
     window.addEventListener('scroll', handleScroll)
     return () => window.removeEventListener('scroll', handleScroll)
-  }, [isLoadingMore, hasMore, page])
-
-  const fetchAskingTasks = async (pageNum: number = 1, reset: boolean = false) => {
-    try {
-      if (reset) {
-        setIsLoading(true)
-      } else {
-        setIsLoadingMore(true)
-      }
-      
-      // Adjust status filter based on active tab
-      let effectiveStatusFilter = statusFilter
-      if (activeTab === 'pending') {
-        effectiveStatusFilter = 'active' // Only fetch active tasks for pending tab
-      } else if (activeTab === 'completed') {
-        effectiveStatusFilter = 'completed' // Only fetch completed tasks for completed tab
-      }
-      
-      const params = new URLSearchParams({
-        status: effectiveStatusFilter,
-        flagged: flaggedFilter,
-        stage: stageFilter,
-        search: debouncedSearchQuery,
-        page: pageNum.toString(),
-        limit: '20'
-      })
-      
-      const response = await axios.get(`/api/asking-tasks?${params}`)
-      
-      if (reset) {
-        setAskingTasks(response.data.askingTasks)
-      } else {
-        setAskingTasks(prev => [...prev, ...response.data.askingTasks])
-      }
-      
-      setHasMore(response.data.hasMore)
-      setPage(pageNum)
-    } catch (error) {
-      console.error('Error fetching asking tasks:', error)
-      toast.error('Failed to load asking tasks')
-    } finally {
-      setIsLoading(false)
-      setIsLoadingMore(false)
-    }
-  }
-
-  const loadMoreTasks = () => {
-    if (!isLoadingMore && hasMore) {
-      fetchAskingTasks(page + 1, false)
-    }
-  }
-
-  const handleSearch = () => {
-    setPage(1)
-    setAskingTasks([])
-    setHasMore(true)
-    fetchAskingTasks(1, true)
-  }
+  }, [isFetchingNextPage, hasNextPage, fetchNextPage])
 
   const handleMarkComplete = async () => {
     if (!selectedTask) return
 
     try {
       setIsSubmitting(true)
-      const response = await axios.patch(`/api/asking-tasks/${selectedTask.id}/complete`, {
-        notes: completionNotes || undefined,
+      await completeTaskMutation.mutateAsync({
+        id: selectedTask.id,
+        data: { notes: completionNotes || undefined },
       })
       
-      // Update the task in the local state instead of refetching
-      const updatedTask = response.data.askingTask
-      setAskingTasks(prevTasks => 
-        prevTasks.map(task => 
-          task.id === selectedTask.id 
-            ? { 
-                ...task, 
-                completedAt: updatedTask.completedAt, 
-                completedUser: updatedTask.completedUser 
-              }
-            : task
-        )
-      )
-      
       // Keep the order expanded so user can see the updated task
-      setOpenOrders(prev => ({
-        ...prev,
-        [selectedTask.order.id]: true
-      }))
+      if (selectedTask.order) {
+        setOpenOrders(prev => ({
+          ...prev,
+          [selectedTask.order!.id]: true
+        }))
+      }
       
       toast.success('Task marked as complete')
       setShowCompleteDialog(false)
@@ -251,37 +160,35 @@ export default function AskingTasksPage() {
     setSelectedTaskId(null)
   }
 
-  const handleStageUpdate = () => {
-    // Refetch only the updated task instead of all tasks
-    if (selectedTaskId) {
-      axios.get(`/api/asking-tasks/${selectedTaskId}`)
-        .then(response => {
-          setAskingTasks(prevTasks => 
-            prevTasks.map(task => 
-              task.id === selectedTaskId ? response.data : task
-            )
-          )
-        })
-        .catch(error => {
-          console.error('Error refreshing task:', error)
-          // If individual fetch fails, fall back to full refresh
-          fetchAskingTasks()
-        })
-    } else {
-      fetchAskingTasks()
+  const handleToggleFlag = async (taskId: string, currentFlagged: boolean) => {
+    try {
+      await flagTaskMutation.mutateAsync({
+        id: taskId,
+        data: { isFlagged: !currentFlagged },
+      })
+    } catch (error) {
+      console.error('Error toggling flag:', error)
     }
   }
 
   // Group tasks by order and separate into pending and completed
   const groupTasksByOrder = () => {
-    const grouped = new Map<string, AskingTask[]>()
-    askingTasks.forEach((task) => {
+    type TaskWithOrder = AskingTaskDetailed & { order: NonNullable<AskingTaskDetailed['order']> }
+    const grouped = new Map<string, TaskWithOrder[]>()
+    
+    // Filter out tasks without orders and group by order ID
+    const tasksWithOrders = askingTasks.filter(
+      (task): task is TaskWithOrder => task.order !== null && task.order !== undefined
+    )
+    
+    tasksWithOrders.forEach((task) => {
       const orderId = task.order.id
       if (!grouped.has(orderId)) {
         grouped.set(orderId, [])
       }
       grouped.get(orderId)!.push(task)
     })
+    
     return Array.from(grouped.entries()).map(([orderId, tasks]) => ({
       orderId,
       orderNumber: tasks[0].order.orderNumber,
@@ -724,7 +631,7 @@ export default function AskingTasksPage() {
       </Tabs>
 
       {/* Loading More Indicator */}
-      {isLoadingMore && (
+      {isFetchingNextPage && (
         <div className="flex items-center justify-center py-8">
           <Loader2 className="h-6 w-6 animate-spin mr-2" />
           <span className="text-muted-foreground">Loading more tasks...</span>
@@ -732,7 +639,7 @@ export default function AskingTasksPage() {
       )}
 
       {/* No More Items Indicator */}
-      {!hasMore && askingTasks.length > 0 && (
+      {!hasNextPage && askingTasks.length > 0 && (
         <div className="flex items-center justify-center py-8">
           <span className="text-muted-foreground">No more tasks to load</span>
         </div>
@@ -752,9 +659,11 @@ export default function AskingTasksPage() {
               <div>
                 <strong>Service:</strong> {selectedTask.service?.name || 'Custom Task'}
               </div>
-              <div>
-                <strong>Order:</strong> #{selectedTask.order.orderNumber}
-              </div>
+              {selectedTask.order && (
+                <div>
+                  <strong>Order:</strong> #{selectedTask.order.orderNumber}
+                </div>
+              )}
             </div>
           )}
           <div className="space-y-4">
@@ -795,7 +704,6 @@ export default function AskingTasksPage() {
           taskId={selectedTaskId}
           isOpen={showStageModal}
           onClose={handleCloseStageModal}
-          onUpdate={handleStageUpdate}
         />
       )}
     </div>

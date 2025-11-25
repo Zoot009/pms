@@ -56,7 +56,7 @@ interface StageDetailsModalProps {
   taskId: string
   isOpen: boolean
   onClose: () => void
-  onUpdate: () => void
+  onUpdate?: () => void
 }
 
 const STAGES = [
@@ -132,7 +132,7 @@ export function StageDetailsModal({ taskId, isOpen, onClose, onUpdate }: StageDe
       
       // Refresh data
       await fetchTaskDetails()
-      onUpdate()
+      onUpdate?.()
     } catch (error: any) {
       console.error('Error updating stage:', error)
       toast.error(error.response?.data?.error || 'Failed to update stage')
