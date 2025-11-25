@@ -1,5 +1,5 @@
 import { type EmailOtpType } from '@supabase/supabase-js'
-import { type NextRequest } from 'next/server'
+import { type NextRequest, NextResponse } from 'next/server'
 
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
@@ -11,6 +11,7 @@ export async function GET(request: NextRequest) {
   const token_hash = searchParams.get('token_hash')
   const type = searchParams.get('type') as EmailOtpType | null
   const next = searchParams.get('next') ?? '/'
+  const redirectTo = new URL(request.url).origin
 
   console.log('=== Email Confirmation Started ===')
   console.log('Type:', type)
@@ -32,11 +33,12 @@ export async function GET(request: NextRequest) {
       userEmail: data?.user?.email
     })
 
-    if (!error) {
+    if (!error && data.session) {
       // For password recovery, redirect to update-password page
       if (type === 'recovery') {
         console.log('Password recovery confirmed, redirecting to update-password')
-        redirect('/auth/update-password')
+        // Use NextResponse.redirect to maintain session cookies
+        return NextResponse.redirect(`${redirectTo}/auth/update-password`)
       }
       
       // For signup confirmation, sync user with database
@@ -112,9 +114,9 @@ export async function GET(request: NextRequest) {
       
       console.log('Redirecting to:', next)
       // redirect user to specified redirect URL or root of app
-      redirect(next)
+      return NextResponse.redirect(`${redirectTo}${next}`)
     } else {
-      console.error('❌ OTP verification failed:', error.message)
+      console.error('❌ OTP verification failed:', error?.message || 'No session created')
     }
   } else {
     console.error('❌ Missing token_hash or type in confirmation URL')
@@ -122,5 +124,5 @@ export async function GET(request: NextRequest) {
 
   // redirect the user to an error page with some instructions
   console.log('Redirecting to error page')
-  redirect('/error')
+  return NextResponse.redirect(`${redirectTo}/auth/error?message=Invalid or expired confirmation link`)
 }
