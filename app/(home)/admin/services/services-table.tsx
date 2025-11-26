@@ -18,6 +18,7 @@ interface Service {
   description: string | null
   timeLimit: number | null
   isMandatory: boolean
+  requiresCompletionNote: boolean
   team: {
     id: string
     name: string
@@ -49,6 +50,7 @@ export function ServicesTable({ services }: ServicesTableProps) {
             <TableHead>Type</TableHead>
             <TableHead>Assigned Team</TableHead>
             <TableHead>Time Limit</TableHead>
+            <TableHead>Completion Note</TableHead>
             <TableHead>Description</TableHead>
             <TableHead className="text-right">Actions</TableHead>
           </TableRow>
@@ -56,7 +58,7 @@ export function ServicesTable({ services }: ServicesTableProps) {
         <TableBody>
           {services.length === 0 ? (
             <TableRow>
-              <TableCell colSpan={6} className="text-center text-muted-foreground">
+              <TableCell colSpan={7} className="text-center text-muted-foreground">
                 No services found. Create your first service to get started.
               </TableCell>
             </TableRow>
@@ -80,6 +82,15 @@ export function ServicesTable({ services }: ServicesTableProps) {
                 <TableCell>
                   {service.timeLimit ? (
                     <span className="text-sm">{service.timeLimit} hours</span>
+                  ) : (
+                    <span className="text-sm text-muted-foreground">-</span>
+                  )}
+                </TableCell>
+                <TableCell>
+                  {service.type === 'ASKING_SERVICE' && service.requiresCompletionNote ? (
+                    <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-300 dark:bg-blue-950 dark:text-blue-300 dark:border-blue-800">
+                      Required
+                    </Badge>
                   ) : (
                     <span className="text-sm text-muted-foreground">-</span>
                   )}
