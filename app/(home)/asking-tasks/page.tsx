@@ -248,6 +248,50 @@ export default function AskingTasksPage() {
     }
   }
 
+  const handleCompleteClick = async (task: AskingTask) => {
+    setSelectedTask(task)
+    
+    // If notes are not required, complete directly without dialog
+    if (!task.service?.requiresCompletionNote) {
+      try {
+        setIsSubmitting(true)
+        const response = await axios.patch(`/api/asking-tasks/${task.id}/complete`, {})
+        
+        // Update the task in the local state
+        const updatedTask = response.data.askingTask
+        setAskingTasks(prevTasks => 
+          prevTasks.map(t => 
+            t.id === task.id 
+              ? { 
+                  ...t, 
+                  completedAt: updatedTask.completedAt, 
+                  completedUser: updatedTask.completedUser 
+                }
+              : t
+          )
+        )
+        
+        // Keep the order expanded so user can see the updated task
+        setOpenOrders(prev => ({
+          ...prev,
+          [task.order.id]: true
+        }))
+        
+        toast.success('Task marked as complete')
+        setSelectedTask(null)
+      } catch (error: any) {
+        console.error('Error completing task:', error)
+        toast.error(error.response?.data?.error || 'Failed to complete task')
+      } finally {
+        setIsSubmitting(false)
+      }
+    } else {
+      // If notes are required, show the dialog
+      setCompletionNotes('')
+      setShowCompleteDialog(true)
+    }
+  }
+
   const handleShowDetails = (taskId: string) => {
     setSelectedTaskId(taskId)
     setShowStageModal(true)
@@ -564,12 +608,11 @@ export default function AskingTasksPage() {
                                   <Button
                                     variant="outline"
                                     size="sm"
-                                    onClick={() => {
-                                      setSelectedTask(task)
-                                      setShowCompleteDialog(true)
-                                    }}
+                                    onClick={() => handleCompleteClick(task)}
+                                    disabled={isSubmitting}
                                     className="text-red-600 hover:text-red-700 border-red-200 hover:border-red-300 dark:text-red-400 dark:border-red-800 dark:hover:border-red-700"
                                   >
+                                    {isSubmitting && selectedTask?.id === task.id && <Loader2 className="h-3 w-3 mr-1 animate-spin" />}
                                     Mark Complete
                                   </Button>
                                   <Button
@@ -764,25 +807,27 @@ export default function AskingTasksPage() {
               </div>
             </div>
           )}
-          <div className="space-y-4">
-            <div>
-              <label className="text-sm font-medium mb-2 block">
-                Completion Notes {selectedTask?.service?.requiresCompletionNote && <span className="text-destructive">*</span>}
-              </label>
-              <Textarea
-                placeholder={selectedTask?.service?.requiresCompletionNote ? "Completion notes are required for this task..." : "Add any completion notes..."}
-                value={completionNotes}
-                onChange={(e) => setCompletionNotes(e.target.value)}
-                rows={4}
-                className={selectedTask?.service?.requiresCompletionNote && !completionNotes.trim() ? "border-destructive" : ""}
-              />
-              {selectedTask?.service?.requiresCompletionNote && !completionNotes.trim() && (
-                <p className="text-sm text-destructive mt-1">
-                  This task requires completion notes before marking as complete.
-                </p>
-              )}
+          {selectedTask?.service?.requiresCompletionNote && (
+            <div className="space-y-4">
+              <div>
+                <label className="text-sm font-medium mb-2 block">
+                  Completion Notes <span className="text-destructive">*</span>
+                </label>
+                <Textarea
+                  placeholder="Completion notes are required for this task..."
+                  value={completionNotes}
+                  onChange={(e) => setCompletionNotes(e.target.value)}
+                  rows={4}
+                  className={!completionNotes.trim() ? "border-destructive" : ""}
+                />
+                {!completionNotes.trim() && (
+                  <p className="text-sm text-destructive mt-1">
+                    This task requires completion notes before marking as complete.
+                  </p>
+                )}
+              </div>
             </div>
-          </div>
+          )}
           <DialogFooter>
             <Button
               variant="outline"
