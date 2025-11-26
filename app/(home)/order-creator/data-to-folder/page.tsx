@@ -76,6 +76,14 @@ export default function OrderCreatorDataToFolderPage() {
       return
     }
 
+    // Validate URL format
+    try {
+      new URL(folderLink.trim())
+    } catch (error) {
+      toast.error('Please enter a valid URL (e.g., https://drive.google.com/...)')
+      return
+    }
+
     try {
       setSavingOrderId(orderId)
       await axios.patch(`/api/order-creator/orders/data-to-folder/${orderId}`, {
