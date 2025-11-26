@@ -27,11 +27,15 @@ export async function GET(request: NextRequest) {
     // Build where condition
     const whereCondition: any = {}
 
-    // Status filter
+    // Status filter - exclude COMPLETED orders for delivery page
     if (status !== 'ALL') {
       whereCondition.status = status
+    } else {
+      // When status is ALL, exclude COMPLETED orders (show only deliverable orders)
+      whereCondition.status = {
+        not: 'COMPLETED'
+      }
     }
-    // If status is 'ALL', show all orders (no additional filter needed)
 
     // Search filter
     if (search) {
@@ -51,13 +55,109 @@ export async function GET(request: NextRequest) {
             name: true,
           },
         },
+        tasks: {
+          include: {
+            service: {
+              select: {
+                id: true,
+                name: true,
+                type: true,
+              },
+            },
+            assignedUser: {
+              select: {
+                id: true,
+                displayName: true,
+                email: true,
+              },
+            },
+          },
+        },
+        askingTasks: {
+          include: {
+            service: {
+              select: {
+                id: true,
+                name: true,
+                type: true,
+              },
+            },
+            assignedUser: {
+              select: {
+                id: true,
+                displayName: true,
+                email: true,
+              },
+            },
+          },
+        },
       },
       orderBy: [
         { orderDate: 'desc' },
       ],
     })
 
-    return NextResponse.json({ orders })
+    // Calculate statistics for each order
+    const ordersWithStats = orders.map((order) => {
+      try {
+        const tasks = order.tasks || []
+        const askingTasks = order.askingTasks || []
+        const allTasks: any[] = [...tasks, ...askingTasks]
+        
+        const totalTasks = allTasks.length
+        const completedTasks = allTasks.filter((t: any) => 
+          t.completedAt !== null && t.completedAt !== undefined
+        ).length
+        const unassignedTasks = tasks.filter((t: any) => t.status === 'NOT_ASSIGNED').length
+        const overdueTasks = allTasks.filter((t: any) => {
+          if (t.completedAt) return false
+          if (!t.deadline) return false
+          return new Date(t.deadline) < new Date()
+        }).length
+
+        // Both tasks and asking tasks can have isMandatory field
+        const mandatoryTasks = tasks.filter((t: any) => t.isMandatory === true)
+        const mandatoryAskingTasks = askingTasks.filter((t: any) => t.isMandatory === true)
+        const allMandatoryTasks = [...mandatoryTasks, ...mandatoryAskingTasks]
+        const mandatoryCompleted = allMandatoryTasks.filter((t: any) => t.completedAt).length
+        const mandatoryRemaining = allMandatoryTasks.length - mandatoryCompleted
+
+        const createdAt = new Date(order.createdAt)
+        const now = new Date()
+        const daysOld = Math.floor((now.getTime() - createdAt.getTime()) / (1000 * 60 * 60 * 24))
+
+        return {
+          ...order,
+          statistics: {
+            totalTasks,
+            completedTasks,
+            unassignedTasks,
+            overdueTasks,
+            mandatoryTasks: allMandatoryTasks.length,
+            mandatoryCompleted,
+            mandatoryRemaining,
+            daysOld,
+          },
+        }
+      } catch (err) {
+        console.error(`Error calculating stats for order ${order.id}:`, err)
+        return {
+          ...order,
+          statistics: {
+            totalTasks: 0,
+            completedTasks: 0,
+            unassignedTasks: 0,
+            overdueTasks: 0,
+            mandatoryTasks: 0,
+            mandatoryCompleted: 0,
+            mandatoryRemaining: 0,
+            daysOld: 0,
+          },
+        }
+      }
+    })
+
+    return NextResponse.json({ orders: ordersWithStats })
   } catch (error) {
     console.error('Error fetching order creator orders:', error)
     return NextResponse.json(

@@ -138,18 +138,10 @@ export default function DeliveryPage() {
   const fetchOrders = async () => {
     try {
       setIsLoading(true)
-      // Fetch both PENDING and IN_PROGRESS orders
-      const [pendingResponse, inProgressResponse] = await Promise.all([
-        axios.get('/api/orders?status=PENDING'),
-        axios.get('/api/orders?status=IN_PROGRESS')
-      ])
+      // Fetch all non-completed orders (PENDING and IN_PROGRESS)
+      const response = await axios.get('/api/order-creator/orders?status=ALL')
       
-      const allOrders = [
-        ...pendingResponse.data.orders,
-        ...inProgressResponse.data.orders
-      ]
-      
-      setOrders(allOrders)
+      setOrders(response.data.orders)
     } catch (error) {
       console.error('Error fetching orders:', error)
       toast.error('Failed to load orders')

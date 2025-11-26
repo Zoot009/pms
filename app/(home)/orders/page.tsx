@@ -140,12 +140,6 @@ export default function OrdersPage() {
             <div className="flex items-center gap-2 flex-wrap">
               {getStatusBadge(order.status)}
               <Badge variant="secondary">MEDIUM PRIORITY</Badge>
-              {order.status === 'PENDING' && (
-                <Badge variant="destructive" className="flex items-center gap-1">
-                  <AlertCircle className="h-3 w-3" />
-                  Delivery Blocked
-                </Badge>
-              )}
             </div>
           </div>
         </CardHeader>

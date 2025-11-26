@@ -26,6 +26,7 @@ export async function POST(req: NextRequest) {
       description,
       detailStructure,
       isMandatory,
+      requiresCompletionNote,
       hasTaskCount,
       taskCount,
     } = body
@@ -61,6 +62,7 @@ export async function POST(req: NextRequest) {
         timeLimit: timeLimit || null,
         description: description || null,
         isMandatory: isMandatory || false,
+        requiresCompletionNote: requiresCompletionNote || false,
         hasTaskCount: hasTaskCount || false,
         taskCount: taskCount || null,
         createdById: user.id,

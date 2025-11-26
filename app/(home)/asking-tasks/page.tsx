@@ -70,6 +70,7 @@ interface AskingTask {
   service: {
     id: string
     name: string
+    requiresCompletionNote: boolean
   }
   team: {
     id: string
@@ -202,6 +203,12 @@ export default function AskingTasksPage() {
 
   const handleMarkComplete = async () => {
     if (!selectedTask) return
+
+    // Validate required completion notes
+    if (selectedTask.service?.requiresCompletionNote && !completionNotes.trim()) {
+      toast.error('Completion notes are required for this task')
+      return
+    }
 
     try {
       setIsSubmitting(true)
@@ -760,14 +767,20 @@ export default function AskingTasksPage() {
           <div className="space-y-4">
             <div>
               <label className="text-sm font-medium mb-2 block">
-                Completion Notes (Optional)
+                Completion Notes {selectedTask?.service?.requiresCompletionNote && <span className="text-destructive">*</span>}
               </label>
               <Textarea
-                placeholder="Add any completion notes..."
+                placeholder={selectedTask?.service?.requiresCompletionNote ? "Completion notes are required for this task..." : "Add any completion notes..."}
                 value={completionNotes}
                 onChange={(e) => setCompletionNotes(e.target.value)}
                 rows={4}
+                className={selectedTask?.service?.requiresCompletionNote && !completionNotes.trim() ? "border-destructive" : ""}
               />
+              {selectedTask?.service?.requiresCompletionNote && !completionNotes.trim() && (
+                <p className="text-sm text-destructive mt-1">
+                  This task requires completion notes before marking as complete.
+                </p>
+              )}
             </div>
           </div>
           <DialogFooter>
@@ -781,7 +794,10 @@ export default function AskingTasksPage() {
             >
               Cancel
             </Button>
-            <Button onClick={handleMarkComplete} disabled={isSubmitting}>
+            <Button 
+              onClick={handleMarkComplete} 
+              disabled={isSubmitting || (selectedTask?.service?.requiresCompletionNote && !completionNotes.trim())}
+            >
               {isSubmitting && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
               Mark Complete
             </Button>

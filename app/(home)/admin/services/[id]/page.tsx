@@ -53,6 +53,7 @@ const serviceSchema = z
     description: z.string().optional(),
     detailStructure: z.string().optional(),
     isMandatory: z.boolean(),
+    requiresCompletionNote: z.boolean(),
     hasTaskCount: z.boolean(),
     taskCount: z.number().positive().optional(),
   })
@@ -85,6 +86,7 @@ interface Service {
   timeLimit: number | null
   description: string | null
   isMandatory: boolean
+  requiresCompletionNote: boolean
   hasTaskCount: boolean
   taskCount: number | null
   isActive: boolean
@@ -118,6 +120,7 @@ export default function EditServicePage({
       description: '',
       detailStructure: '',
       isMandatory: false,
+      requiresCompletionNote: false,
       hasTaskCount: false,
       taskCount: undefined,
     },
@@ -146,6 +149,7 @@ export default function EditServicePage({
           description: serviceResponse.data.description || '',
           detailStructure: serviceResponse.data.askingDetail?.detail || '',
           isMandatory: serviceResponse.data.isMandatory,
+          requiresCompletionNote: serviceResponse.data.requiresCompletionNote,
           hasTaskCount: serviceResponse.data.hasTaskCount,
           taskCount: serviceResponse.data.taskCount ?? undefined,
         })
@@ -173,6 +177,7 @@ export default function EditServicePage({
         detailStructure:
           data.type === 'ASKING_SERVICE' ? (data.detailStructure || null) : null,
         isMandatory: data.isMandatory,
+        requiresCompletionNote: data.requiresCompletionNote,
         hasTaskCount: data.hasTaskCount,
         taskCount: data.hasTaskCount ? (data.taskCount ?? null) : null,
       }
@@ -486,6 +491,29 @@ export default function EditServicePage({
                   </FormItem>
                 )}
               />
+
+              {serviceType === 'ASKING_SERVICE' && (
+                <FormField
+                  control={form.control}
+                  name="requiresCompletionNote"
+                  render={({ field }) => (
+                    <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4">
+                      <FormControl>
+                        <Checkbox
+                          checked={field.value}
+                          onCheckedChange={field.onChange}
+                        />
+                      </FormControl>
+                      <div className="space-y-1 leading-none">
+                        <FormLabel>Require Completion Note</FormLabel>
+                        <FormDescription>
+                          Make completion notes mandatory when completing this asking task
+                        </FormDescription>
+                      </div>
+                    </FormItem>
+                  )}
+                />
+              )}
 
               <FormField
                 control={form.control}

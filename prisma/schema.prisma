@@ -168,21 +168,22 @@ model TeamMember {
 // ============================================
 
 model Service {
-  id             String      @id @default(cuid())
-  name           String      @unique @db.VarChar(255)
-  slug           String      @unique @db.VarChar(255)
-  type           ServiceType
-  description    String?     @db.Text
-  teamId         String      @map("team_id")
-  timeLimit      Int?        @map("time_limit") // in hours
-  isMandatory    Boolean     @default(true) @map("is_mandatory")
-  hasTaskCount   Boolean     @default(false) @map("has_task_count")
-  taskCount      Int?        @map("task_count")
-  isActive       Boolean     @default(true) @map("is_active")
-  createdById    String?     @map("created_by") @db.VarChar(255)
-  createdAt      DateTime    @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt      DateTime    @updatedAt @map("updated_at") @db.Timestamptz(6)
-  metadata       Json?
+  id                      String      @id @default(cuid())
+  name                    String      @unique @db.VarChar(255)
+  slug                    String      @unique @db.VarChar(255)
+  type                    ServiceType
+  description             String?     @db.Text
+  teamId                  String      @map("team_id")
+  timeLimit               Int?        @map("time_limit") // in hours
+  isMandatory             Boolean     @default(true) @map("is_mandatory")
+  hasTaskCount            Boolean     @default(false) @map("has_task_count")
+  taskCount               Int?        @map("task_count")
+  requiresCompletionNote  Boolean     @default(false) @map("requires_completion_note")
+  isActive                Boolean     @default(true) @map("is_active")
+  createdById             String?     @map("created_by") @db.VarChar(255)
+  createdAt               DateTime    @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt               DateTime    @updatedAt @map("updated_at") @db.Timestamptz(6)
+  metadata                Json?
 
   // Relations
   team              Team                @relation(fields: [teamId], references: [id])

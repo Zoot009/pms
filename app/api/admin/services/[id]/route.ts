@@ -81,6 +81,7 @@ export async function PATCH(
       description,
       detailStructure,
       isMandatory,
+      requiresCompletionNote,
       hasTaskCount,
       taskCount,
     } = body
@@ -160,6 +161,7 @@ export async function PATCH(
         timeLimit: timeLimit !== undefined ? timeLimit : existingService.timeLimit,
         description: description !== undefined ? description : existingService.description,
         isMandatory: isMandatory !== undefined ? isMandatory : existingService.isMandatory,
+        requiresCompletionNote: requiresCompletionNote !== undefined ? requiresCompletionNote : existingService.requiresCompletionNote,
         hasTaskCount: hasTaskCount !== undefined ? hasTaskCount : existingService.hasTaskCount,
         taskCount: hasTaskCount ? (taskCount ?? null) : null,
         ...askingDetailUpdate,
