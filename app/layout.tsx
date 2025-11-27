@@ -37,7 +37,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               <NavigationProvider>
                 {children}
               </NavigationProvider>
-              <Toaster/>
+              <Toaster richColors/>
             </ThemeProvider>
           </QueryProvider>
         </body>
