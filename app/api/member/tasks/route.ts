@@ -85,6 +85,7 @@ export async function GET(request: NextRequest) {
             name: true,
             type: true,
             timeLimit: true,
+            requiresCompletionNote: true,
           },
         },
       },
@@ -127,6 +128,12 @@ export async function GET(request: NextRequest) {
         serviceName: task.service?.name || 'Custom Task',
         serviceType: task.service?.type || 'CUSTOM',
         serviceTimeLimit: task.service?.timeLimit || null,
+        service: task.service ? {
+          name: task.service.name,
+          type: task.service.type,
+          timeLimit: task.service.timeLimit,
+          requiresCompletionNote: task.service.requiresCompletionNote,
+        } : undefined,
         createdAt: task.createdAt,
       })
     })

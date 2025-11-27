@@ -23,6 +23,13 @@ export async function PATCH(
     // Check if task exists and is assigned to this user
     const task = await prisma.task.findUnique({
       where: { id },
+      include: {
+        service: {
+          select: {
+            requiresCompletionNote: true,
+          },
+        },
+      },
     })
 
     if (!task) {
@@ -46,6 +53,14 @@ export async function PATCH(
     if (task.status === 'ASSIGNED') {
       return NextResponse.json(
         { message: 'Please start the task before completing it' },
+        { status: 400 }
+      )
+    }
+
+    // Validate completion notes if required
+    if (task.service?.requiresCompletionNote && !completionNotes?.trim()) {
+      return NextResponse.json(
+        { message: 'Completion notes are required for this task' },
         { status: 400 }
       )
     }

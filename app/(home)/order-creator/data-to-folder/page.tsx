@@ -11,7 +11,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { toast } from 'sonner'
-import { Loader2, ExternalLink } from 'lucide-react'
+import { Loader2, ExternalLink, Search } from 'lucide-react'
 
 interface Order {
   id: string
@@ -34,6 +34,7 @@ export default function OrderCreatorDataToFolderPage() {
   const [folderLinks, setFolderLinks] = useState<Record<string, string>>({})
   const [savingOrderId, setSavingOrderId] = useState<string | null>(null)
   const [editingOrderId, setEditingOrderId] = useState<string | null>(null)
+  const [searchQuery, setSearchQuery] = useState('')
 
   useEffect(() => {
     fetchOrders()
@@ -252,8 +253,19 @@ export default function OrderCreatorDataToFolderPage() {
     )
   }
 
-  const ordersWithoutLinks = orders.filter(order => !order.folderLink)
-  const ordersWithLinks = orders.filter(order => order.folderLink)
+  const filterOrders = (ordersList: Order[]) => {
+    if (!searchQuery.trim()) return ordersList
+    
+    const query = searchQuery.toLowerCase()
+    return ordersList.filter(order =>
+      order.orderNumber.toLowerCase().includes(query) ||
+      order.customerName.toLowerCase().includes(query) ||
+      order.orderType.name.toLowerCase().includes(query)
+    )
+  }
+
+  const ordersWithoutLinks = filterOrders(orders.filter(order => !order.folderLink))
+  const ordersWithLinks = filterOrders(orders.filter(order => order.folderLink))
 
   return (
     <>
@@ -261,6 +273,17 @@ export default function OrderCreatorDataToFolderPage() {
         <div>
           <h1 className="text-3xl font-bold">Data to Folder Management</h1>
           <p className="text-muted-foreground">Manage folder links for your orders</p>
+        </div>
+
+        {/* Search Bar */}
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
+          <Input
+            placeholder="Search by order number, customer name, or order type..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="pl-10"
+          />
         </div>
 
         <Tabs defaultValue="without-links" className="w-full">

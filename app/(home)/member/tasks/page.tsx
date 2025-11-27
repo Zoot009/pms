@@ -10,6 +10,8 @@ import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Input } from '@/components/ui/input'
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { Textarea } from '@/components/ui/textarea'
 import Link from 'next/link'
 import { 
   AlertTriangle, 
@@ -34,6 +36,12 @@ interface Task {
   serviceName: string
   startedAt: string | null
   completedAt: string | null
+  service?: {
+    name: string
+    type: string
+    timeLimit: number | null
+    requiresCompletionNote: boolean
+  }
 }
 
 interface AskingTask {
@@ -68,6 +76,12 @@ export default function MyTasksPage() {
   const [startingTaskId, setStartingTaskId] = useState<string | null>(null)
   const [completingTaskId, setCompletingTaskId] = useState<string | null>(null)
   const [pausingTaskId, setPausingTaskId] = useState<string | null>(null)
+  
+  // Completion dialog state
+  const [showCompleteDialog, setShowCompleteDialog] = useState(false)
+  const [selectedTask, setSelectedTask] = useState<Task | null>(null)
+  const [completionNotes, setCompletionNotes] = useState('')
+  const [isSubmitting, setIsSubmitting] = useState(false)
   
   // Notes modal state
   const [showNotesModal, setShowNotesModal] = useState(false)
@@ -152,18 +166,53 @@ export default function MyTasksPage() {
     }
   }
 
-  const handleCompleteTask = async (taskId: string) => {
+  const handleCompleteTask = async (task: Task) => {
+    // If service requires completion note, show dialog
+    if (task.service?.requiresCompletionNote) {
+      setSelectedTask(task)
+      setCompletionNotes('')
+      setShowCompleteDialog(true)
+    } else {
+      // Complete directly without dialog
+      try {
+        setCompletingTaskId(task.id)
+        await axios.patch(`/api/member/tasks/${task.id}/complete`, {
+          completionNotes: ''
+        })
+        // Refresh the tasks after completing
+        await fetchTasks()
+      } catch (error) {
+        console.error('Error completing task:', error)
+      } finally {
+        setCompletingTaskId(null)
+      }
+    }
+  }
+
+  const handleMarkComplete = async () => {
+    if (!selectedTask) return
+
+    // Validate required completion notes
+    if (selectedTask.service?.requiresCompletionNote && !completionNotes.trim()) {
+      return // Button will be disabled, but extra safety check
+    }
+
     try {
-      setCompletingTaskId(taskId)
-      await axios.patch(`/api/member/tasks/${taskId}/complete`, {
-        completionNotes: ''
+      setIsSubmitting(true)
+      await axios.patch(`/api/member/tasks/${selectedTask.id}/complete`, {
+        completionNotes: completionNotes || ''
       })
+      
       // Refresh the tasks after completing
       await fetchTasks()
-    } catch (error) {
+      
+      setShowCompleteDialog(false)
+      setSelectedTask(null)
+      setCompletionNotes('')
+    } catch (error: any) {
       console.error('Error completing task:', error)
     } finally {
-      setCompletingTaskId(null)
+      setIsSubmitting(false)
     }
   }
 
@@ -583,7 +632,7 @@ export default function MyTasksPage() {
                                 <Button
                                   size="sm"
                                   variant="outline"
-                                  onClick={() => handleCompleteTask(task.id)}
+                                  onClick={() => handleCompleteTask(task)}
                                   disabled={completingTaskId === task.id}
                                   className='text-green-500 hover:text-green-700'
                                 >
@@ -640,6 +689,74 @@ export default function MyTasksPage() {
           orderNumber={selectedOrderNumber}
         />
       )}
+
+      {/* Complete Task Dialog */}
+      <Dialog open={showCompleteDialog} onOpenChange={setShowCompleteDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Mark Task as Complete</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to mark this task as complete?
+            </DialogDescription>
+          </DialogHeader>
+          {selectedTask && (
+            <div className="space-y-2 text-sm">
+              <div>
+                <strong>Service:</strong> {selectedTask.serviceName || selectedTask.service?.name}
+              </div>
+              <div>
+                <strong>Task:</strong> {selectedTask.title}
+              </div>
+            </div>
+          )}
+          {selectedTask?.service?.requiresCompletionNote && (
+            <div className="space-y-4">
+              <div>
+                <label className="text-sm font-medium mb-2 block">
+                  Completion Notes <span className="text-destructive">*</span>
+                </label>
+                <Textarea
+                  placeholder="Enter the reason or notes for completing this task..."
+                  value={completionNotes}
+                  onChange={(e) => setCompletionNotes(e.target.value)}
+                  rows={4}
+                  className={!completionNotes.trim() ? "border-destructive" : ""}
+                />
+                {!completionNotes.trim() && (
+                  <p className="text-sm text-destructive mt-1">
+                    This task requires completion notes before marking as complete.
+                  </p>
+                )}
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setShowCompleteDialog(false)
+                setSelectedTask(null)
+                setCompletionNotes('')
+              }}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleMarkComplete}
+              disabled={isSubmitting || (selectedTask?.service?.requiresCompletionNote && !completionNotes.trim())}
+            >
+              {isSubmitting ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Completing...
+                </>
+              ) : (
+                'Mark as Complete'
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

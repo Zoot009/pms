@@ -87,7 +87,7 @@ export function ServicesTable({ services }: ServicesTableProps) {
                   )}
                 </TableCell>
                 <TableCell>
-                  {service.type === 'ASKING_SERVICE' && service.requiresCompletionNote ? (
+                  {service.requiresCompletionNote ? (
                     <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-300 dark:bg-blue-950 dark:text-blue-300 dark:border-blue-800">
                       Required
                     </Badge>
