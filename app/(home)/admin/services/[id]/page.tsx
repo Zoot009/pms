@@ -56,6 +56,8 @@ const serviceSchema = z
     requiresCompletionNote: z.boolean(),
     hasTaskCount: z.boolean(),
     taskCount: z.number().positive().optional(),
+    autoAssignEnabled: z.boolean(),
+    autoAssignUserId: z.string().optional(),
   })
   .refine(
     (data) => {
@@ -70,12 +72,33 @@ const serviceSchema = z
       path: ['taskCount'],
     }
   )
+  .refine(
+    (data) => {
+      // If autoAssignEnabled is true, autoAssignUserId must be provided
+      if (data.autoAssignEnabled && !data.autoAssignUserId) {
+        return false
+      }
+      return true
+    },
+    {
+      message: 'User selection is required when "Auto Assign" is enabled',
+      path: ['autoAssignUserId'],
+    }
+  )
 
 type ServiceFormValues = z.infer<typeof serviceSchema>
 
 interface Team {
   id: string
   name: string
+}
+
+interface User {
+  id: string
+  displayName: string | null
+  email: string
+  role: string
+  isActive: boolean
 }
 
 interface Service {
@@ -89,6 +112,8 @@ interface Service {
   requiresCompletionNote: boolean
   hasTaskCount: boolean
   taskCount: number | null
+  autoAssignEnabled: boolean
+  autoAssignUserId: string | null
   isActive: boolean
   askingDetail?: {
     detail: string | null
@@ -103,8 +128,10 @@ export default function EditServicePage({
   const resolvedParams = use(params)
   const router = useRouter()
   const [teams, setTeams] = useState<Team[]>([])
+  const [users, setUsers] = useState<User[]>([])
   const [service, setService] = useState<Service | null>(null)
   const [isLoadingTeams, setIsLoadingTeams] = useState(true)
+  const [isLoadingUsers, setIsLoadingUsers] = useState(true)
   const [isLoadingService, setIsLoadingService] = useState(true)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
@@ -123,21 +150,26 @@ export default function EditServicePage({
       requiresCompletionNote: false,
       hasTaskCount: false,
       taskCount: undefined,
+      autoAssignEnabled: false,
+      autoAssignUserId: undefined,
     },
   })
 
   const serviceType = form.watch('type')
   const hasTaskCount = form.watch('hasTaskCount')
+  const autoAssignEnabled = form.watch('autoAssignEnabled')
 
   useEffect(() => {
     async function fetchData() {
       try {
-        const [teamsResponse, serviceResponse] = await Promise.all([
+        const [teamsResponse, usersResponse, serviceResponse] = await Promise.all([
           axios.get<{ teams: Team[] }>('/api/admin/teams'),
+          axios.get<{ users: User[] }>('/api/admin/users'),
           axios.get<Service>(`/api/admin/services/${resolvedParams.id}`),
         ])
 
         setTeams(teamsResponse.data.teams.filter((team: any) => team.isActive))
+        setUsers(usersResponse.data.users.filter((user: any) => user.isActive && (user.role === 'MEMBER' || user.role === 'ADMIN')))
         setService(serviceResponse.data)
 
         // Populate form with service data
@@ -152,12 +184,15 @@ export default function EditServicePage({
           requiresCompletionNote: serviceResponse.data.requiresCompletionNote,
           hasTaskCount: serviceResponse.data.hasTaskCount,
           taskCount: serviceResponse.data.taskCount ?? undefined,
+          autoAssignEnabled: serviceResponse.data.autoAssignEnabled,
+          autoAssignUserId: serviceResponse.data.autoAssignUserId ?? undefined,
         })
       } catch (error) {
         toast.error('Failed to load service data')
         console.error('Error fetching data:', error)
       } finally {
         setIsLoadingTeams(false)
+        setIsLoadingUsers(false)
         setIsLoadingService(false)
       }
     }
@@ -180,6 +215,8 @@ export default function EditServicePage({
         requiresCompletionNote: data.requiresCompletionNote,
         hasTaskCount: data.hasTaskCount,
         taskCount: data.hasTaskCount ? (data.taskCount ?? null) : null,
+        autoAssignEnabled: data.autoAssignEnabled,
+        autoAssignUserId: data.autoAssignEnabled ? (data.autoAssignUserId ?? null) : null,
       }
 
       const response = await axios.patch(
@@ -554,6 +591,64 @@ export default function EditServicePage({
                       </FormControl>
                       <FormDescription>
                         Default number of tasks for this service
+                      </FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              )}
+
+              <FormField
+                control={form.control}
+                name="autoAssignEnabled"
+                render={({ field }) => (
+                  <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4">
+                    <FormControl>
+                      <Checkbox
+                        checked={field.value}
+                        onCheckedChange={field.onChange}
+                      />
+                    </FormControl>
+                    <div className="space-y-1 leading-none">
+                      <FormLabel>Enable Auto Assign</FormLabel>
+                      <FormDescription>
+                        Automatically assign new tasks from this service to a specific user
+                      </FormDescription>
+                    </div>
+                  </FormItem>
+                )}
+              />
+
+              {autoAssignEnabled && (
+                <FormField
+                  control={form.control}
+                  name="autoAssignUserId"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Auto Assign User *</FormLabel>
+                      <Select
+                        onValueChange={field.onChange}
+                        value={field.value}
+                        disabled={isLoadingUsers}
+                      >
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select a user to auto-assign tasks" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {users.map((user) => (
+                            <SelectItem key={user.id} value={user.id}>
+                              {user.displayName || user.email}
+                              <Badge variant="outline" className="ml-2 text-xs">
+                                {user.role}
+                              </Badge>
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormDescription>
+                        All new tasks created from this service will be automatically assigned to this user
                       </FormDescription>
                       <FormMessage />
                     </FormItem>

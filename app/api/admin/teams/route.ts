@@ -93,7 +93,7 @@ export async function GET(request: NextRequest) {
   try {
     const currentUser = await getCurrentUser()
 
-    if (!currentUser || currentUser.role !== UserRole.ADMIN) {
+    if (!currentUser || (currentUser.role !== UserRole.ADMIN && currentUser.role !== UserRole.ORDER_CREATOR)) {
       return NextResponse.json({ message: 'Unauthorized' }, { status: 403 })
     }
 

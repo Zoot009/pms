@@ -29,6 +29,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Checkbox } from '@/components/ui/checkbox'
+import { Badge } from '@/components/ui/badge'
 import { ArrowLeft, Loader2 } from 'lucide-react'
 import { toast } from 'sonner'
 
@@ -43,6 +44,8 @@ const serviceSchema = z
     isMandatory: z.boolean(),
     hasTaskCount: z.boolean(),
     taskCount: z.number().positive().optional(),
+    autoAssignEnabled: z.boolean(),
+    autoAssignUserId: z.string().optional(),
   })
   .refine(
     (data) => {
@@ -50,11 +53,28 @@ const serviceSchema = z
       if (data.hasTaskCount && !data.taskCount) {
         return false
       }
+      // If autoAssignEnabled is true, autoAssignUserId must be provided
+      if (data.autoAssignEnabled && !data.autoAssignUserId) {
+        return false
+      }
       return true
     },
     {
       message: 'Task count is required when "Has Task Count" is enabled',
       path: ['taskCount'],
+    }
+  )
+  .refine(
+    (data) => {
+      // If autoAssignEnabled is true, autoAssignUserId must be provided
+      if (data.autoAssignEnabled && !data.autoAssignUserId) {
+        return false
+      }
+      return true
+    },
+    {
+      message: 'User selection is required when "Auto Assign" is enabled',
+      path: ['autoAssignUserId'],
     }
   )
 
@@ -65,11 +85,35 @@ interface Team {
   name: string
 }
 
+interface User {
+  id: string
+  email: string
+  firstName?: string
+  lastName?: string
+}
+
+interface Service {
+  id: string
+  name: string
+  type: 'SERVICE_TASK' | 'ASKING_SERVICE'
+  teamId: string
+  timeLimit?: number
+  description?: string
+  detailStructure?: string
+  isMandatory: boolean
+  hasTaskCount: boolean
+  taskCount?: number
+  autoAssignEnabled: boolean
+  autoAssignUserId?: string
+}
+
 export default function NewServicePage() {
   const router = useRouter()
   const [teams, setTeams] = useState<Team[]>([])
   const [isLoadingTeams, setIsLoadingTeams] = useState(true)
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [users, setUsers] = useState<User[]>([])
+  const [isUsersLoading, setIsUsersLoading] = useState(false)
 
   const form = useForm<ServiceFormValues>({
     resolver: zodResolver(serviceSchema),
@@ -83,11 +127,14 @@ export default function NewServicePage() {
       isMandatory: false,
       hasTaskCount: false,
       taskCount: undefined,
+      autoAssignEnabled: false,
+      autoAssignUserId: undefined,
     },
   })
 
   const serviceType = form.watch('type')
   const hasTaskCount = form.watch('hasTaskCount')
+  const autoAssignEnabled = form.watch('autoAssignEnabled')
 
   useEffect(() => {
     async function fetchTeams() {
@@ -105,6 +152,26 @@ export default function NewServicePage() {
     fetchTeams()
   }, [])
 
+  const fetchUsers = async () => {
+    setIsUsersLoading(true)
+    try {
+      const response = await axios.get<{ users: User[] }>('/api/admin/users')
+      setUsers(response.data.users)
+    } catch (error) {
+      toast.error('Failed to load users')
+      console.error('Error fetching users:', error)
+    } finally {
+      setIsUsersLoading(false)
+    }
+  }
+
+  // Fetch users when auto assign is enabled
+  useEffect(() => {
+    if (autoAssignEnabled && users.length === 0) {
+      fetchUsers()
+    }
+  }, [autoAssignEnabled, users.length])
+
   async function onSubmit(data: ServiceFormValues) {
     setIsSubmitting(true)
     try {
@@ -114,6 +181,7 @@ export default function NewServicePage() {
         detailStructure:
           data.type === 'ASKING_SERVICE' ? data.detailStructure : undefined,
         taskCount: data.hasTaskCount ? data.taskCount : null,
+        autoAssignUserId: data.autoAssignEnabled ? data.autoAssignUserId : null,
       }
 
       await axios.post('/api/admin/services', payload)
@@ -312,6 +380,65 @@ export default function NewServicePage() {
                         </FormControl>
                         <FormDescription>
                           Default number of tasks for this service
+                        </FormDescription>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                )}
+
+                <FormField
+                  control={form.control}
+                  name="autoAssignEnabled"
+                  render={({ field }) => (
+                    <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4">
+                      <FormControl>
+                        <Checkbox
+                          checked={field.value}
+                          onCheckedChange={field.onChange}
+                        />
+                      </FormControl>
+                      <div className="space-y-1 leading-none">
+                        <FormLabel>
+                          Auto Assign <Badge variant="secondary">New</Badge>
+                        </FormLabel>
+                        <FormDescription>
+                          Automatically assign this service tasks to a specific user when order folder link is added
+                        </FormDescription>
+                      </div>
+                    </FormItem>
+                  )}
+                />
+
+                {autoAssignEnabled && (
+                  <FormField
+                    control={form.control}
+                    name="autoAssignUserId"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Auto Assign User</FormLabel>
+                        <Select
+                          value={field.value}
+                          onValueChange={field.onChange}
+                          disabled={isUsersLoading}
+                        >
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select user for auto assignment" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            {users.map((user) => (
+                              <SelectItem key={user.id} value={user.id}>
+                                {user.firstName && user.lastName
+                                  ? `${user.firstName} ${user.lastName}`
+                                  : user.email}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <FormDescription>
+                          Select the user who will automatically receive this service tasks
                         </FormDescription>
                         <FormMessage />
                       </FormItem>

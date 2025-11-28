@@ -51,7 +51,7 @@ export function ServiceActions({ serviceId, serviceName }: ServiceActionsProps) 
   return (
     <div className="flex gap-2 justify-end">
       <Button variant="outline" size="sm" asChild>
-        <Link href={`/admin/services/${serviceId}`}>Edit</Link>
+        <Link href={`/order-creator/services/${serviceId}`}>Edit</Link>
       </Button>
       <AlertDialog open={isOpen} onOpenChange={setIsOpen}>
         <AlertDialogTrigger asChild>

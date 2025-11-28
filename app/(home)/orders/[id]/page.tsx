@@ -12,7 +12,6 @@ import { Alert, AlertDescription } from '@/components/ui/alert'
 import { StageDetailsModal } from '@/components/stage-details-modal'
 import { EditOrderButton } from '@/components/edit-order-button'
 import { ExtendDeliveryButton } from '@/components/extend-delivery-button'
-import { EditServicesModal } from '@/components/edit-services-modal'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import {
   AlertDialog,
@@ -75,7 +74,6 @@ export default function OrderDetailPage({ params }: OrderDetailPageProps) {
   const [selectedAskingTaskId, setSelectedAskingTaskId] = useState<string | null>(null)
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
-  const [showEditServicesModal, setShowEditServicesModal] = useState(false)
 
   useEffect(() => {
     fetchOrderDetails()
@@ -265,7 +263,7 @@ export default function OrderDetailPage({ params }: OrderDetailPageProps) {
               {(currentUser?.role === 'ORDER_CREATOR' || currentUser?.role === 'ADMIN') && order.status !== 'COMPLETED' && order.status !== 'CANCELLED' && (
                 <Button
                   variant="outline"
-                  onClick={() => setShowEditServicesModal(true)}
+                  onClick={() => router.push(`/orders/${orderId}/edit-services`)}
                 >
                   <Settings className="h-4 w-4 mr-2" />
                   Edit Services
@@ -824,15 +822,6 @@ export default function OrderDetailPage({ params }: OrderDetailPageProps) {
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* Edit Services Modal */}
-      <EditServicesModal
-        orderId={orderId}
-        isOpen={showEditServicesModal}
-        onClose={() => setShowEditServicesModal(false)}
-        onSuccess={() => {
-          fetchOrderDetails() // Refresh order data after services are updated
-        }}
-      />
     </div>
   )
 }

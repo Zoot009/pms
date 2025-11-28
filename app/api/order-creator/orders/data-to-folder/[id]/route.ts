@@ -39,20 +39,92 @@ export async function PATCH(
       )
     }
 
-    // Update order with folder link
-    const updatedOrder = await prisma.order.update({
-      where: { id },
-      data: {
-        folderLink,
-      },
-      include: {
-        orderType: {
-          select: {
-            id: true,
-            name: true,
+    // Update order with folder link and auto-assign tasks
+    const updatedOrder = await prisma.$transaction(async (tx) => {
+      // Update the order
+      const order = await tx.order.update({
+        where: { id },
+        data: {
+          folderLink,
+        },
+        include: {
+          orderType: {
+            select: {
+              id: true,
+              name: true,
+            },
           },
         },
-      },
+      })
+
+      // Auto-assign unassigned tasks that have auto-assign enabled services
+      const unassignedTasks = await tx.task.findMany({
+        where: {
+          orderId: id,
+          assignedTo: null,
+        },
+        include: {
+          service: {
+            select: {
+              id: true,
+              name: true,
+              autoAssignEnabled: true,
+              autoAssignUserId: true,
+            },
+          },
+        },
+      })
+
+      console.log('[AUTO-ASSIGN DEBUG] Found unassigned tasks:', unassignedTasks.length)
+
+      for (const task of unassignedTasks) {
+        if (task.service?.autoAssignEnabled && task.service?.autoAssignUserId) {
+          console.log('[AUTO-ASSIGN DEBUG] Auto-assigning task:', task.title, 'to user:', task.service.autoAssignUserId)
+          
+          await tx.task.update({
+            where: { id: task.id },
+            data: {
+              assignedTo: task.service.autoAssignUserId,
+              status: 'ASSIGNED',
+            },
+          })
+        }
+      }
+
+      // Auto-assign unassigned asking tasks that have auto-assign enabled services
+      const unassignedAskingTasks = await tx.askingTask.findMany({
+        where: {
+          orderId: id,
+          assignedTo: null,
+        },
+        include: {
+          service: {
+            select: {
+              id: true,
+              name: true,
+              autoAssignEnabled: true,
+              autoAssignUserId: true,
+            },
+          },
+        },
+      })
+
+      console.log('[AUTO-ASSIGN DEBUG] Found unassigned asking tasks:', unassignedAskingTasks.length)
+
+      for (const askingTask of unassignedAskingTasks) {
+        if (askingTask.service?.autoAssignEnabled && askingTask.service?.autoAssignUserId) {
+          console.log('[AUTO-ASSIGN DEBUG] Auto-assigning asking task:', askingTask.title, 'to user:', askingTask.service.autoAssignUserId)
+          
+          await tx.askingTask.update({
+            where: { id: askingTask.id },
+            data: {
+              assignedTo: askingTask.service.autoAssignUserId,
+            },
+          })
+        }
+      }
+
+      return order
     })
 
     // Create audit log
