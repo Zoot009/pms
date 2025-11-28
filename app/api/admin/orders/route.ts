@@ -223,9 +223,6 @@ export async function POST(req: NextRequest) {
               data: {
                 orderId: newOrder.id,
                 serviceId: serviceId,
-                description: instance.description || null,
-                targetName: instance.targetName || null,
-                targetUrl: instance.targetUrl || null,
               },
             })
           })
@@ -245,41 +242,35 @@ export async function POST(req: NextRequest) {
 
         // Create regular tasks for SERVICE_TASK type
         if (regularServiceInstances.length > 0) {
-          const taskData = await Promise.all(
-            regularServiceInstances.map(async (orderService: any) => {
-              const instance = servicesToCreate.find((s: any) => 
-                (s.serviceId || s.service?.id || s.id) === orderService.serviceId
-              )
-              const service = instance?.service || instance
-              const taskTitle = orderService.targetName 
-                ? `${service.name} - ${orderService.targetName}`
-                : `${service.name} - ${newOrder.orderNumber}`
+          for (const orderService of regularServiceInstances) {
+            const instance = servicesToCreate.find((s: any) => 
+              (s.serviceId || s.service?.id || s.id) === orderService.serviceId
+            )
+            const service = instance?.service || instance
+            const taskTitle = orderService.targetName 
+              ? `${service.name} - ${orderService.targetName}`
+              : `${service.name} - ${newOrder.orderNumber}`
 
-              // Fetch full service details if teamId is missing
-              let teamId = service.teamId
-              if (!teamId) {
-                const fullService = await tx.service.findUnique({
-                  where: { id: orderService.serviceId },
-                  select: { teamId: true }
-                })
-                teamId = fullService?.teamId
-              }
+            // Fetch team info
+            const fullService = await tx.service.findUnique({
+              where: { id: orderService.serviceId },
+              select: { teamId: true }
+            })
 
-              return {
+            // Tasks start as NOT_ASSIGNED, will be auto-assigned when folderLink is added
+            await tx.task.create({
+              data: {
                 orderId: newOrder.id,
                 orderServiceId: orderService.id,
                 serviceId: orderService.serviceId,
-                teamId: teamId!,
+                teamId: fullService?.teamId || service.teamId,
                 title: taskTitle,
                 description: orderService.description || null,
-                status: 'NOT_ASSIGNED' as const,
-              }
+                status: 'NOT_ASSIGNED',
+                priority: 'MEDIUM',
+              },
             })
-          )
-
-          await tx.task.createMany({
-            data: taskData,
-          })
+          }
         }
 
         // Create asking tasks for ASKING_SERVICE type
@@ -303,6 +294,7 @@ export async function POST(req: NextRequest) {
               teamId = fullService?.teamId
             }
 
+            // Asking tasks start unassigned, will be auto-assigned when folderLink is added
             await tx.askingTask.create({
               data: {
                 orderId: newOrder.id,

@@ -29,6 +29,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Checkbox } from '@/components/ui/checkbox'
+import { Badge } from '@/components/ui/badge'
 import { ArrowLeft, Loader2 } from 'lucide-react'
 import { toast } from 'sonner'
 
@@ -44,6 +45,8 @@ const serviceSchema = z
     requiresCompletionNote: z.boolean(),
     hasTaskCount: z.boolean(),
     taskCount: z.number().positive().optional(),
+    autoAssignEnabled: z.boolean(),
+    autoAssignUserId: z.string().optional(),
   })
   .refine(
     (data) => {
@@ -58,6 +61,19 @@ const serviceSchema = z
       path: ['taskCount'],
     }
   )
+  .refine(
+    (data) => {
+      // If autoAssignEnabled is true, autoAssignUserId must be provided
+      if (data.autoAssignEnabled && !data.autoAssignUserId) {
+        return false
+      }
+      return true
+    },
+    {
+      message: 'User selection is required when "Auto Assign" is enabled',
+      path: ['autoAssignUserId'],
+    }
+  )
 
 type ServiceFormValues = z.infer<typeof serviceSchema>
 
@@ -66,10 +82,20 @@ interface Team {
   name: string
 }
 
+interface User {
+  id: string
+  displayName: string | null
+  email: string
+  role: string
+  isActive: boolean
+}
+
 export default function NewServicePage() {
   const router = useRouter()
   const [teams, setTeams] = useState<Team[]>([])
+  const [users, setUsers] = useState<User[]>([])
   const [isLoadingTeams, setIsLoadingTeams] = useState(true)
+  const [isLoadingUsers, setIsLoadingUsers] = useState(true)
   const [isSubmitting, setIsSubmitting] = useState(false)
 
   const form = useForm<ServiceFormValues>({
@@ -85,26 +111,35 @@ export default function NewServicePage() {
       requiresCompletionNote: false,
       hasTaskCount: false,
       taskCount: undefined,
+      autoAssignEnabled: false,
+      autoAssignUserId: undefined,
     },
   })
 
   const serviceType = form.watch('type')
   const hasTaskCount = form.watch('hasTaskCount')
+  const autoAssignEnabled = form.watch('autoAssignEnabled')
 
   useEffect(() => {
-    async function fetchTeams() {
+    async function fetchData() {
       try {
-        const response = await axios.get<{ teams: Team[] }>('/api/admin/teams')
-        setTeams(response.data.teams.filter((team: any) => team.isActive))
+        const [teamsResponse, usersResponse] = await Promise.all([
+          axios.get<{ teams: Team[] }>('/api/admin/teams'),
+          axios.get<{ users: User[] }>('/api/admin/users'),
+        ])
+        
+        setTeams(teamsResponse.data.teams.filter((team: any) => team.isActive))
+        setUsers(usersResponse.data.users.filter((user: any) => user.isActive && (user.role === 'MEMBER' || user.role === 'ADMIN')))
       } catch (error) {
-        toast.error('Failed to load teams')
-        console.error('Error fetching teams:', error)
+        toast.error('Failed to load data')
+        console.error('Error fetching data:', error)
       } finally {
         setIsLoadingTeams(false)
+        setIsLoadingUsers(false)
       }
     }
 
-    fetchTeams()
+    fetchData()
   }, [])
 
   async function onSubmit(data: ServiceFormValues) {
@@ -116,6 +151,7 @@ export default function NewServicePage() {
         detailStructure:
           data.type === 'ASKING_SERVICE' ? data.detailStructure : undefined,
         taskCount: data.hasTaskCount ? data.taskCount : null,
+        autoAssignUserId: data.autoAssignEnabled ? data.autoAssignUserId : null,
       }
 
       await axios.post('/api/admin/services', payload)
@@ -336,6 +372,61 @@ export default function NewServicePage() {
                         </FormControl>
                         <FormDescription>
                           Default number of tasks for this service
+                        </FormDescription>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                )}
+
+                <FormField
+                  control={form.control}
+                  name="autoAssignEnabled"
+                  render={({ field }) => (
+                    <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4">
+                      <FormControl>
+                        <Checkbox
+                          checked={field.value}
+                          onCheckedChange={field.onChange}
+                        />
+                      </FormControl>
+                      <div className="space-y-1 leading-none">
+                        <FormLabel>Enable Auto Assign</FormLabel>
+                        <FormDescription>
+                          Automatically assign new tasks from this service to a specific user
+                        </FormDescription>
+                      </div>
+                    </FormItem>
+                  )}
+                />
+
+                {autoAssignEnabled && (
+                  <FormField
+                    control={form.control}
+                    name="autoAssignUserId"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Auto Assign User *</FormLabel>
+                        <Select
+                          onValueChange={field.onChange}
+                          value={field.value}
+                          disabled={isLoadingUsers}
+                        >
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select a user to auto-assign tasks" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            {users.map((user) => (
+                              <SelectItem key={user.id} value={user.id}>
+                                {user.displayName || user.email}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <FormDescription>
+                          All new tasks created from this service will be automatically assigned to this user
                         </FormDescription>
                         <FormMessage />
                       </FormItem>

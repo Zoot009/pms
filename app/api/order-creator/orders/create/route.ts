@@ -72,6 +72,7 @@ export async function POST(request: NextRequest) {
 
       // Create tasks based on service type
       if (orderTypeService.service.type === 'SERVICE_TASK') {
+        // Tasks start as NOT_ASSIGNED, will be auto-assigned when folderLink is added
         await prisma.task.create({
           data: {
             orderId: order.id,
@@ -86,6 +87,7 @@ export async function POST(request: NextRequest) {
           },
         })
       } else if (orderTypeService.service.type === 'ASKING_SERVICE') {
+        // Asking tasks start unassigned, will be auto-assigned when folderLink is added
         await prisma.askingTask.create({
           data: {
             orderId: order.id,

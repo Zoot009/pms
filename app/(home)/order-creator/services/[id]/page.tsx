@@ -55,6 +55,8 @@ const serviceSchema = z
     isMandatory: z.boolean(),
     hasTaskCount: z.boolean(),
     taskCount: z.number().positive().optional(),
+    autoAssignEnabled: z.boolean(),
+    autoAssignUserId: z.string().optional(),
   })
   .refine(
     (data) => {
@@ -69,12 +71,33 @@ const serviceSchema = z
       path: ['taskCount'],
     }
   )
+  .refine(
+    (data) => {
+      // If autoAssignEnabled is true, autoAssignUserId must be provided
+      if (data.autoAssignEnabled && !data.autoAssignUserId) {
+        return false
+      }
+      return true
+    },
+    {
+      message: 'User selection is required when "Auto Assign" is enabled',
+      path: ['autoAssignUserId'],
+    }
+  )
 
 type ServiceFormValues = z.infer<typeof serviceSchema>
 
 interface Team {
   id: string
   name: string
+}
+
+interface User {
+  id: string
+  displayName: string | null
+  email: string
+  role: string
+  isActive: boolean
 }
 
 interface Service {
@@ -87,6 +110,8 @@ interface Service {
   isMandatory: boolean
   hasTaskCount: boolean
   taskCount: number | null
+  autoAssignEnabled?: boolean  // Optional for backward compatibility
+  autoAssignUserId?: string | null  // Optional for backward compatibility
   isActive: boolean
   askingDetail?: {
     detail: string | null
@@ -101,8 +126,10 @@ export default function EditServicePage({
   const resolvedParams = use(params)
   const router = useRouter()
   const [teams, setTeams] = useState<Team[]>([])
+  const [users, setUsers] = useState<User[]>([])
   const [service, setService] = useState<Service | null>(null)
   const [isLoadingTeams, setIsLoadingTeams] = useState(true)
+  const [isLoadingUsers, setIsLoadingUsers] = useState(true)
   const [isLoadingService, setIsLoadingService] = useState(true)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
@@ -120,21 +147,26 @@ export default function EditServicePage({
       isMandatory: false,
       hasTaskCount: false,
       taskCount: undefined,
+      autoAssignEnabled: false,
+      autoAssignUserId: undefined,
     },
   })
 
   const serviceType = form.watch('type')
   const hasTaskCount = form.watch('hasTaskCount')
+  const autoAssignEnabled = form.watch('autoAssignEnabled')
 
   useEffect(() => {
     async function fetchData() {
       try {
-        const [teamsResponse, serviceResponse] = await Promise.all([
+        const [teamsResponse, usersResponse, serviceResponse] = await Promise.all([
           axios.get<{ teams: Team[] }>('/api/admin/teams'),
+          axios.get<{ users: User[] }>('/api/admin/users'),
           axios.get<Service>(`/api/admin/services/${resolvedParams.id}`),
         ])
 
         setTeams(teamsResponse.data.teams.filter((team: any) => team.isActive))
+        setUsers(usersResponse.data.users.filter((user: any) => user.isActive && (user.role === 'MEMBER' || user.role === 'ADMIN')))
         setService(serviceResponse.data)
 
         // Populate form with service data
@@ -148,12 +180,24 @@ export default function EditServicePage({
           isMandatory: serviceResponse.data.isMandatory,
           hasTaskCount: serviceResponse.data.hasTaskCount,
           taskCount: serviceResponse.data.taskCount ?? undefined,
+          // Provide defaults for auto-assign fields in case they don't exist due to migration issues
+          autoAssignEnabled: serviceResponse.data.autoAssignEnabled ?? false,
+          autoAssignUserId: serviceResponse.data.autoAssignUserId ?? undefined,
         })
       } catch (error) {
-        toast.error('Failed to load service data')
-        console.error('Error fetching data:', error)
+        console.error('Error fetching data for service ID:', resolvedParams.id)
+        console.error('Error details:', error)
+        if (axios.isAxiosError(error)) {
+          console.error('Response status:', error.response?.status)
+          console.error('Response data:', error.response?.data)
+          const errorMessage = error.response?.data?.message || 'Failed to load service data'
+          toast.error(`${errorMessage} (Service ID: ${resolvedParams.id})`)
+        } else {
+          toast.error('Failed to load service data')
+        }
       } finally {
         setIsLoadingTeams(false)
+        setIsLoadingUsers(false)
         setIsLoadingService(false)
       }
     }
@@ -175,6 +219,8 @@ export default function EditServicePage({
         isMandatory: data.isMandatory,
         hasTaskCount: data.hasTaskCount,
         taskCount: data.hasTaskCount ? (data.taskCount ?? null) : null,
+        autoAssignEnabled: data.autoAssignEnabled,
+        autoAssignUserId: data.autoAssignEnabled ? (data.autoAssignUserId ?? null) : null,
       }
 
       const response = await axios.patch(
@@ -184,7 +230,7 @@ export default function EditServicePage({
       
       setService(response.data)
       toast.success('Service updated successfully')
-      router.push('/admin/services')
+      router.push('/order-creator/services')
       router.refresh()
     } catch (error) {
       if (axios.isAxiosError(error)) {
@@ -231,7 +277,7 @@ export default function EditServicePage({
     try {
       await axios.delete(`/api/admin/services/${resolvedParams.id}`)
       toast.success('Service deleted successfully')
-      router.push('/admin/services')
+      router.push('/order-creator/services')
       router.refresh()
     } catch (error) {
       if (axios.isAxiosError(error)) {
@@ -256,7 +302,35 @@ export default function EditServicePage({
   if (!service) {
     return (
       <div className="p-8">
-        <p>Service not found</p>
+        <div className="flex items-center gap-4 mb-6">
+          <Button variant="ghost" size="icon" asChild>
+            <Link href="/order-creator/services">
+              <ArrowLeft className="h-4 w-4" />
+            </Link>
+          </Button>
+          <div>
+            <h1 className="text-3xl font-bold">Service Not Found</h1>
+            <p className="text-muted-foreground">The requested service could not be found.</p>
+          </div>
+        </div>
+        <Card>
+          <CardContent className="pt-6">
+            <p className="text-muted-foreground mb-4">
+              This could happen if:
+            </p>
+            <ul className="list-disc list-inside space-y-1 text-sm text-muted-foreground mb-4">
+              <li>The service has been deleted</li>
+              <li>You don't have permission to view this service</li>
+              <li>The service ID in the URL is incorrect</li>
+              <li>There's a database connectivity issue</li>
+            </ul>
+            <Button asChild>
+              <Link href="/order-creator/services">
+                Back to Services List
+              </Link>
+            </Button>
+          </CardContent>
+        </Card>
       </div>
     )
   }
@@ -266,7 +340,7 @@ export default function EditServicePage({
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
           <Button variant="ghost" size="icon" asChild>
-            <Link href="/admin/services">
+            <Link href="/order-creator/services">
               <ArrowLeft className="h-4 w-4" />
             </Link>
           </Button>
@@ -535,13 +609,71 @@ export default function EditServicePage({
                 />
               )}
 
+              <FormField
+                  control={form.control}
+                  name="autoAssignEnabled"
+                render={({ field }) => (
+                  <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4">
+                    <FormControl>
+                      <Checkbox
+                        checked={field.value}
+                        onCheckedChange={field.onChange}
+                      />
+                    </FormControl>
+                    <div className="space-y-1 leading-none">
+                      <FormLabel>Enable Auto Assign</FormLabel>
+                      <FormDescription>
+                        Automatically assign new tasks from this service to a specific user (after folder link is added)
+                      </FormDescription>
+                    </div>
+                  </FormItem>
+                )}
+              />
+
+              {autoAssignEnabled && (
+                <FormField
+                  control={form.control}
+                  name="autoAssignUserId"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Auto Assign User *</FormLabel>
+                      <Select
+                        onValueChange={field.onChange}
+                        value={field.value}
+                        disabled={isLoadingUsers}
+                      >
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select a user to auto-assign tasks" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {users.map((user) => (
+                            <SelectItem key={user.id} value={user.id}>
+                              {user.displayName || user.email}
+                              <Badge variant="outline" className="ml-2 text-xs">
+                                {user.role}
+                              </Badge>
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormDescription>
+                        All new tasks created from this service will be automatically assigned to this user when folder link is added
+                      </FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              )}
+
               <div className="flex gap-4">
                 <Button type="submit" disabled={isSubmitting}>
                   {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                   Update Service
                 </Button>
                 <Button type="button" variant="outline" asChild>
-                  <Link href="/admin/services">Cancel</Link>
+                  <Link href="/order-creator/services">Cancel</Link>
                 </Button>
               </div>
             </form>

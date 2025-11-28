@@ -77,8 +77,19 @@ export async function GET(request: NextRequest) {
             email: true,
           },
         },
+        completedUser: {
+          select: {
+            id: true,
+            displayName: true,
+            email: true,
+          },
+        },
       },
     })
+
+    console.log('[Statistics] Total tasks:', tasks.length)
+    console.log('[Statistics] Total asking tasks:', askingTasks.length)
+    console.log('[Statistics] Completed asking tasks:', askingTasks.filter(at => at.completedAt).length)
 
     // Calculate team statistics
     const teamStatsMap = new Map<string, {
@@ -205,8 +216,44 @@ export async function GET(request: NextRequest) {
       }
     })
 
-    // Process asking tasks for member statistics
+    // Process asking tasks for both team and member statistics
     askingTasks.forEach((askingTask) => {
+      // Team statistics for asking tasks
+      if (askingTask.team) {
+        if (!teamStatsMap.has(askingTask.team.id)) {
+          teamStatsMap.set(askingTask.team.id, {
+            teamId: askingTask.team.id,
+            teamName: askingTask.team.name,
+            totalTasks: 0,
+            notAssigned: 0,
+            assigned: 0,
+            inProgress: 0,
+            paused: 0,
+            completed: 0,
+            overdue: 0,
+          })
+        }
+
+        const teamStats = teamStatsMap.get(askingTask.team.id)!
+        teamStats.totalTasks++
+
+        if (askingTask.completedAt) {
+          teamStats.completed++
+        } else {
+          // Check if overdue first, as overdue takes precedence
+          if (askingTask.deadline && new Date(askingTask.deadline) < now) {
+            teamStats.overdue++
+          } else if (askingTask.assignedUser) {
+            // If assigned and not overdue, count as in progress
+            teamStats.inProgress++
+          } else {
+            // Not assigned yet
+            teamStats.notAssigned++
+          }
+        }
+      }
+
+      // Member statistics for asking tasks
       if (askingTask.assignedUser) {
         if (!memberStatsMap.has(askingTask.assignedUser.id)) {
           memberStatsMap.set(askingTask.assignedUser.id, {

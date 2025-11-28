@@ -29,6 +29,8 @@ export async function POST(req: NextRequest) {
       requiresCompletionNote,
       hasTaskCount,
       taskCount,
+      autoAssignEnabled,
+      autoAssignUserId,
     } = body
 
     if (!name || !type || !teamId) {
@@ -75,6 +77,8 @@ export async function POST(req: NextRequest) {
               },
             }
           : {}),
+        autoAssignEnabled: autoAssignEnabled || false,
+        autoAssignUserId: autoAssignUserId || null,
       },
       include: {
         team: {

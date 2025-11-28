@@ -78,9 +78,7 @@ interface Service {
 interface ServiceInstance {
   serviceId: string
   service: Service
-  targetName?: string
-  targetUrl?: string
-  description?: string
+  quantity: number
   instanceId: string // Unique ID for this instance in the UI
 }
 
@@ -92,8 +90,7 @@ export default function NewOrderPage() {
   const [selectedOrderType, setSelectedOrderType] = useState<OrderType | null>(null)
   const [serviceInstances, setServiceInstances] = useState<ServiceInstance[]>([])
   const [isAddServiceDialogOpen, setIsAddServiceDialogOpen] = useState(false)
-  const [editingInstance, setEditingInstance] = useState<ServiceInstance | null>(null)
-  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
+  const [serviceSearchQuery, setServiceSearchQuery] = useState('')
 
   const form = useForm<OrderFormValues>({
     resolver: zodResolver(orderSchema),
@@ -161,6 +158,7 @@ export default function NewOrderPage() {
       setServiceInstances(orderType.services.map(s => ({
         serviceId: s.id,
         service: s,
+        quantity: 1,
         instanceId: `${s.id}-${Date.now()}-${Math.random()}`,
       })))
     } else {
@@ -175,29 +173,50 @@ export default function NewOrderPage() {
   const handleAddService = (serviceId: string) => {
     const service = allServices.find(s => s.id === serviceId)
     if (service) {
-      setServiceInstances(prev => [...prev, {
-        serviceId: service.id,
-        service: service,
-        instanceId: `${service.id}-${Date.now()}-${Math.random()}`,
-      }])
+      const existingInstance = serviceInstances.find(inst => inst.serviceId === serviceId)
+      if (existingInstance) {
+        setServiceInstances(prev => prev.map(inst => 
+          inst.serviceId === serviceId
+            ? { ...inst, quantity: inst.quantity + 1 }
+            : inst
+        ))
+      } else {
+        setServiceInstances(prev => [...prev, {
+          serviceId: service.id,
+          service: service,
+          quantity: 1,
+          instanceId: `${service.id}-${Date.now()}-${Math.random()}`,
+        }])
+      }
     }
     setIsAddServiceDialogOpen(false)
   }
 
-  const handleEditInstance = (instance: ServiceInstance) => {
-    setEditingInstance(instance)
-    setIsEditDialogOpen(true)
-  }
-
-  const handleSaveInstanceDetails = (instanceId: string, details: { targetName?: string; targetUrl?: string; description?: string }) => {
+  const handleIncreaseQuantity = (serviceId: string) => {
     setServiceInstances(prev => prev.map(inst => 
-      inst.instanceId === instanceId 
-        ? { ...inst, ...details }
+      inst.serviceId === serviceId
+        ? { ...inst, quantity: inst.quantity + 1 }
         : inst
     ))
-    setIsEditDialogOpen(false)
-    setEditingInstance(null)
   }
+
+  const handleDecreaseQuantity = (serviceId: string) => {
+    setServiceInstances(prev => prev.map(inst => 
+      inst.serviceId === serviceId
+        ? { ...inst, quantity: Math.max(1, inst.quantity - 1) }
+        : inst
+    ))
+  }
+
+  const handleRemoveService = (serviceId: string) => {
+    setServiceInstances(prev => prev.filter(inst => inst.serviceId !== serviceId))
+  }
+
+  const filteredServices = allServices.filter(service => 
+    service.name.toLowerCase().includes(serviceSearchQuery.toLowerCase()) ||
+    service.type.toLowerCase().includes(serviceSearchQuery.toLowerCase()) ||
+    service.team?.name.toLowerCase().includes(serviceSearchQuery.toLowerCase())
+  )
 
   const isCustomized = () => {
     if (!selectedOrderType) return false
@@ -209,13 +228,8 @@ export default function NewOrderPage() {
       return true
     }
     
-    // Check if any instances have been added (duplicates)
-    const serviceCounts = serviceInstances.reduce((acc, inst) => {
-      acc[inst.serviceId] = (acc[inst.serviceId] || 0) + 1
-      return acc
-    }, {} as Record<string, number>)
-    
-    if (Object.values(serviceCounts).some(count => count > 1)) {
+    // Check if any service has quantity > 1
+    if (serviceInstances.some(inst => inst.quantity > 1)) {
       return true
     }
     
@@ -239,13 +253,12 @@ export default function NewOrderPage() {
         deliveryDate: new Date(deliveryDate).toISOString(),
         deliveryTime: deliveryTime,
         notes: data.notes || null,
-        serviceInstances: serviceInstances.map(inst => ({
-          serviceId: inst.serviceId,
-          service: inst.service,
-          targetName: inst.targetName || null,
-          targetUrl: inst.targetUrl || null,
-          description: inst.description || null,
-        })),
+        serviceInstances: serviceInstances.flatMap(inst => 
+          Array.from({ length: inst.quantity }, () => ({
+            serviceId: inst.serviceId,
+            service: inst.service,
+          }))
+        ),
         isCustomized: isCustomized(),
       }
 
@@ -277,13 +290,12 @@ export default function NewOrderPage() {
         </div>
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-3">
-        <div className="lg:col-span-2">
-          <Card>
-            <CardHeader>
-              <CardTitle>Order Information</CardTitle>
-              <CardDescription>Enter the order details below</CardDescription>
-            </CardHeader>
+      <div className="space-y-6">
+        <Card>
+          <CardHeader>
+            <CardTitle>Order Information</CardTitle>
+            <CardDescription>Enter the order details below</CardDescription>
+          </CardHeader>
             <CardContent>
               <Form {...form}>
                 <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
@@ -464,10 +476,8 @@ export default function NewOrderPage() {
               </Form>
             </CardContent>
           </Card>
-        </div>
 
-        <div className="lg:col-span-1">
-          <Card>
+        <Card>
             <CardHeader>
               <div className="flex items-center justify-between">
                 <div>
@@ -484,43 +494,60 @@ export default function NewOrderPage() {
                         Add
                       </Button>
                     </DialogTrigger>
-                    <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+                    <DialogContent className="max-w-2xl max-h-[80vh] flex flex-col">
                       <DialogHeader>
                         <DialogTitle>Add Service</DialogTitle>
                         <DialogDescription>
                           Select a service to add to this order
                         </DialogDescription>
                       </DialogHeader>
-                      <div className="space-y-2 mt-4">
-                        {allServices.map((service) => (
-                          <div
-                            key={service.id}
-                            className="p-3 border rounded-lg hover:bg-accent cursor-pointer"
-                            onClick={() => handleAddService(service.id)}
-                          >
-                            <div className="flex items-start justify-between gap-2">
-                              <div className="flex-1">
-                                <div className="font-medium text-sm">{service.name}</div>
-                                <div className="text-xs text-muted-foreground space-y-1 mt-1">
-                                  <div className="flex items-center gap-2">
-                                    <Badge variant="outline" className="text-xs">
-                                      {service.type.replace('_', ' ')}
-                                    </Badge>
-                                    {service.team && (
-                                      <span>Team: {service.team.name}</span>
+                      <div className="shrink-0 pb-3">
+                        <Input
+                          placeholder="Search services..."
+                          value={serviceSearchQuery}
+                          onChange={(e) => setServiceSearchQuery(e.target.value)}
+                          className="w-full"
+                        />
+                      </div>
+                      <div className="flex-1 overflow-y-auto space-y-2 pr-2">
+                        {filteredServices.length === 0 ? (
+                          <div className="text-center py-8 text-sm text-muted-foreground">
+                            No services found
+                          </div>
+                        ) : (
+                          filteredServices.map((service) => (
+                            <div
+                              key={service.id}
+                              className="p-3 border rounded-lg hover:bg-accent cursor-pointer"
+                              onClick={() => {
+                                handleAddService(service.id)
+                                setServiceSearchQuery('')
+                              }}
+                            >
+                              <div className="flex items-start justify-between gap-2">
+                                <div className="flex-1">
+                                  <div className="font-medium text-sm">{service.name}</div>
+                                  <div className="text-xs text-muted-foreground space-y-1 mt-1">
+                                    <div className="flex items-center gap-2">
+                                      <Badge variant="outline" className="text-xs">
+                                        {service.type.replace('_', ' ')}
+                                      </Badge>
+                                      {service.team && (
+                                        <span>Team: {service.team.name}</span>
+                                      )}
+                                    </div>
+                                    {service.timeLimit && (
+                                      <div>Time: {service.timeLimit}h</div>
                                     )}
                                   </div>
-                                  {service.timeLimit && (
-                                    <div>Time: {service.timeLimit}h</div>
-                                  )}
                                 </div>
+                                <Button size="sm" variant="ghost">
+                                  <Plus className="h-4 w-4" />
+                                </Button>
                               </div>
-                              <Button size="sm" variant="ghost">
-                                <Plus className="h-4 w-4" />
-                              </Button>
                             </div>
-                          </div>
-                        ))}
+                          ))
+                        )}
                       </div>
                     </DialogContent>
                   </Dialog>
@@ -546,8 +573,8 @@ export default function NewOrderPage() {
                 <div className="space-y-3">
                   <div className="flex items-center justify-between text-sm">
                     <div className="font-medium">
-                      {serviceInstances.length} service instance
-                      {serviceInstances.length !== 1 ? 's' : ''}
+                      {serviceInstances.reduce((sum, inst) => sum + inst.quantity, 0)} service instance
+                      {serviceInstances.reduce((sum, inst) => sum + inst.quantity, 0) !== 1 ? 's' : ''}
                       {isCustomized() && (
                         <Badge variant="secondary" className="ml-2">
                           Customized
@@ -555,7 +582,7 @@ export default function NewOrderPage() {
                       )}
                     </div>
                   </div>
-                  <div className="space-y-2">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                     {serviceInstances.map((instance) => (
                       <div
                         key={instance.instanceId}
@@ -563,22 +590,14 @@ export default function NewOrderPage() {
                       >
                         <div className="flex items-start justify-between gap-2">
                           <div className="flex-1">
-                            <div className="font-medium text-sm">{instance.service.name}</div>
-                            {instance.targetName && (
-                              <div className="text-sm text-blue-600 mt-1">
-                                Target: {instance.targetName}
-                              </div>
-                            )}
-                            {instance.targetUrl && (
-                              <div className="text-xs text-muted-foreground truncate">
-                                {instance.targetUrl}
-                              </div>
-                            )}
-                            {instance.description && (
-                              <div className="text-xs text-muted-foreground mt-1">
-                                {instance.description}
-                              </div>
-                            )}
+                            <div className="flex items-center gap-2">
+                              <div className="font-medium text-sm">{instance.service.name}</div>
+                              {instance.quantity > 1 && (
+                                <Badge variant="secondary" className="text-xs">
+                                  ×{instance.quantity}
+                                </Badge>
+                              )}
+                            </div>
                             <div className="text-xs text-muted-foreground space-y-1 mt-1">
                               <div className="flex items-center gap-2">
                                 <Badge variant="outline" className="text-xs">
@@ -593,25 +612,41 @@ export default function NewOrderPage() {
                               )}
                             </div>
                           </div>
-                          <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              className="h-8 w-8 p-0"
-                              onClick={() => handleEditInstance(instance)}
-                            >
-                              <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                              </svg>
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              className="h-8 w-8 p-0"
-                              onClick={() => handleRemoveInstance(instance.instanceId)}
-                            >
-                              <X className="h-4 w-4 text-destructive" />
-                            </Button>
+                          <div className="flex flex-col gap-1">
+                            <div className="flex items-center gap-1 bg-muted rounded-md p-1">
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                className="h-6 w-6 p-0"
+                                onClick={() => handleDecreaseQuantity(instance.serviceId)}
+                                disabled={instance.quantity <= 1}
+                              >
+                                <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 12H4" />
+                                </svg>
+                              </Button>
+                              <span className="text-xs font-medium w-6 text-center">{instance.quantity}</span>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                className="h-6 w-6 p-0"
+                                onClick={() => handleIncreaseQuantity(instance.serviceId)}
+                              >
+                                <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                                </svg>
+                              </Button>
+                            </div>
+                            <div className="flex gap-1">
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                className="h-7 w-7 p-0"
+                                onClick={() => handleRemoveService(instance.serviceId)}
+                              >
+                                <X className="h-3.5 w-3.5 text-destructive" />
+                              </Button>
+                            </div>
                           </div>
                         </div>
                       </div>
@@ -622,66 +657,8 @@ export default function NewOrderPage() {
                   </div>
                 </div>
               )}
-
-              {/* Edit Instance Dialog */}
-              {editingInstance && (
-                <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-                  <DialogContent>
-                    <DialogHeader>
-                      <DialogTitle>Edit Service Instance</DialogTitle>
-                      <DialogDescription>
-                        Add details to differentiate this instance of {editingInstance.service.name}
-                      </DialogDescription>
-                    </DialogHeader>
-                    <div className="space-y-4 mt-4">
-                      <div>
-                        <label className="text-sm font-medium">Target Name</label>
-                        <Input
-                          id="edit-target-name"
-                          placeholder="e.g., Main Website, Blog Site"
-                          defaultValue={editingInstance.targetName || ''}
-                          className="mt-1"
-                        />
-                      </div>
-                      <div>
-                        <label className="text-sm font-medium">Target URL</label>
-                        <Input
-                          id="edit-target-url"
-                          placeholder="e.g., https://example.com"
-                          defaultValue={editingInstance.targetUrl || ''}
-                          className="mt-1"
-                        />
-                      </div>
-                      <div>
-                        <label className="text-sm font-medium">Description</label>
-                        <Textarea
-                          id="edit-description"
-                          placeholder="Add any specific notes..."
-                          defaultValue={editingInstance.description || ''}
-                          className="mt-1"
-                        />
-                      </div>
-                      <Button
-                        onClick={() => {
-                          const targetName = (document.getElementById('edit-target-name') as HTMLInputElement)?.value
-                          const targetUrl = (document.getElementById('edit-target-url') as HTMLInputElement)?.value
-                          const description = (document.getElementById('edit-description') as HTMLTextAreaElement)?.value
-                          handleSaveInstanceDetails(editingInstance.instanceId, {
-                            targetName: targetName || undefined,
-                            targetUrl: targetUrl || undefined,
-                            description: description || undefined,
-                          })
-                        }}
-                      >
-                        Save Changes
-                      </Button>
-                    </div>
-                  </DialogContent>
-                </Dialog>
-              )}
             </CardContent>
           </Card>
-        </div>
       </div>
     </div>
   )
