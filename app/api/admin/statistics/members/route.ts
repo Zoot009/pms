@@ -135,12 +135,23 @@ export async function GET(request: NextRequest) {
           },
         },
       }),
+      // Fetch asking tasks assigned to OR completed by these users
       prisma.askingTask.findMany({
         where: {
-          assignedTo: { in: userIds },
-          ...(Object.keys(dateFilter).length > 0 && {
-            createdAt: dateFilter,
-          }),
+          OR: [
+            {
+              assignedTo: { in: userIds },
+              ...(Object.keys(dateFilter).length > 0 && {
+                createdAt: dateFilter,
+              }),
+            },
+            {
+              completedBy: { in: userIds },
+              ...(Object.keys(dateFilter).length > 0 && {
+                completedAt: dateFilter,
+              }),
+            },
+          ],
         },
         include: {
           team: {
@@ -168,7 +179,10 @@ export async function GET(request: NextRequest) {
     // Build member statistics
     const memberStats = users.map((user) => {
       const userTasks = tasks.filter(t => t.assignedTo === user.id)
-      const userAskingTasks = askingTasks.filter(at => at.assignedTo === user.id)
+      // Count asking tasks assigned to OR completed by this user
+      const userAskingTasks = askingTasks.filter(at => 
+        at.assignedTo === user.id || at.completedBy === user.id
+      )
 
       // Service Task Statistics
       const serviceTasks = {
@@ -187,19 +201,20 @@ export async function GET(request: NextRequest) {
         ).length,
       }
 
-      // Asking Task Statistics
+      // Asking Task Statistics - count completed tasks by completedBy, not assignedTo
       const askingTaskStats = {
         total: userAskingTasks.length,
         active: userAskingTasks.filter(at => !at.completedAt).length,
-        completed: userAskingTasks.filter(at => at.completedAt).length,
+        // Count as completed if user completed it (completedBy) OR if assigned and marked complete
+        completed: userAskingTasks.filter(at => at.completedAt && at.completedBy === user.id).length,
         overdue: userAskingTasks.filter(
           at => !at.completedAt && at.deadline && new Date(at.deadline) < now
         ).length,
         completedThisWeek: userAskingTasks.filter(
-          at => at.completedAt && at.completedAt >= startOfWeek
+          at => at.completedAt && at.completedBy === user.id && at.completedAt >= startOfWeek
         ).length,
         completedThisMonth: userAskingTasks.filter(
-          at => at.completedAt && at.completedAt >= startOfMonth
+          at => at.completedAt && at.completedBy === user.id && at.completedAt >= startOfMonth
         ).length,
       }
 

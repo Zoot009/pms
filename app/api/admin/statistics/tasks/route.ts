@@ -253,13 +253,23 @@ export async function GET(request: NextRequest) {
         }
       }
 
-      // Member statistics for asking tasks
-      if (askingTask.assignedUser) {
-        if (!memberStatsMap.has(askingTask.assignedUser.id)) {
-          memberStatsMap.set(askingTask.assignedUser.id, {
-            userId: askingTask.assignedUser.id,
-            userName: askingTask.assignedUser.displayName || askingTask.assignedUser.email,
-            userEmail: askingTask.assignedUser.email,
+      // Member statistics for asking tasks - count by completedBy for completed tasks
+      // For completed tasks, credit goes to the person who completed it (completedBy)
+      // For active tasks, count for the assignedUser
+      const relevantUserId = askingTask.completedAt && askingTask.completedUser 
+        ? askingTask.completedUser.id 
+        : askingTask.assignedUser?.id
+
+      if (relevantUserId) {
+        const relevantUser = askingTask.completedAt && askingTask.completedUser
+          ? askingTask.completedUser
+          : askingTask.assignedUser
+
+        if (!memberStatsMap.has(relevantUserId)) {
+          memberStatsMap.set(relevantUserId, {
+            userId: relevantUserId,
+            userName: relevantUser!.displayName || relevantUser!.email,
+            userEmail: relevantUser!.email,
             teams: new Set<string>(),
             totalTasks: 0,
             inProgress: 0,
@@ -271,7 +281,7 @@ export async function GET(request: NextRequest) {
           })
         }
 
-        const memberStats = memberStatsMap.get(askingTask.assignedUser.id)!
+        const memberStats = memberStatsMap.get(relevantUserId)!
         memberStats.totalTasks++
 
         if (askingTask.team) {
