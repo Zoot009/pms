@@ -31,14 +31,13 @@ export async function GET(
             name: true,
           },
         },
-        // Temporarily commented out to avoid migration issues
-        // autoAssignUser: {
-        //   select: {
-        //     id: true,
-        //     displayName: true,
-        //     email: true,
-        //   },
-        // },
+        autoAssignUser: {
+          select: {
+            id: true,
+            displayName: true,
+            email: true,
+          },
+        },
         askingDetails: true,
         _count: {
           select: {
@@ -174,9 +173,8 @@ export async function PATCH(
         requiresCompletionNote: requiresCompletionNote !== undefined ? requiresCompletionNote : existingService.requiresCompletionNote,
         hasTaskCount: hasTaskCount !== undefined ? hasTaskCount : existingService.hasTaskCount,
         taskCount: hasTaskCount ? (taskCount ?? null) : null,
-        // Temporarily commented out to avoid migration issues
-        // autoAssignEnabled: autoAssignEnabled !== undefined ? autoAssignEnabled : existingService.autoAssignEnabled,
-        // autoAssignUserId: autoAssignUserId !== undefined ? autoAssignUserId : existingService.autoAssignUserId,
+        autoAssignEnabled: autoAssignEnabled !== undefined ? autoAssignEnabled : existingService.autoAssignEnabled,
+        autoAssignUserId: autoAssignEnabled ? (autoAssignUserId !== undefined ? autoAssignUserId : existingService.autoAssignUserId) : null,
         ...askingDetailUpdate,
       },
       include: {
