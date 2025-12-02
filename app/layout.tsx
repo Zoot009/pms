@@ -22,11 +22,15 @@ export const metadata: Metadata = {
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
+  const environment = process.env.ENVIRONMENT || 'development';
+  
   return (
     <>
-      <html lang="en" suppressHydrationWarning>
+      <html lang="en" suppressHydrationWarning data-environment={environment}>
         <head />
-        <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
+        <body 
+          className={`${geistSans.variable} ${geistMono.variable} antialiased`}
+        >
           <QueryProvider>
             <ThemeProvider
               attribute="class"

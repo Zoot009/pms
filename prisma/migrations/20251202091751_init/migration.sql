@@ -1,5 +1,5 @@
 -- CreateEnum
-CREATE TYPE "UserRole" AS ENUM ('ADMIN', 'TEAM_LEADER', 'MEMBER', 'ORDER_CREATOR');
+CREATE TYPE "UserRole" AS ENUM ('ADMIN', 'MEMBER', 'ORDER_CREATOR');
 
 -- CreateEnum
 CREATE TYPE "ServiceType" AS ENUM ('SERVICE_TASK', 'ASKING_SERVICE');
@@ -8,10 +8,10 @@ CREATE TYPE "ServiceType" AS ENUM ('SERVICE_TASK', 'ASKING_SERVICE');
 CREATE TYPE "OrderStatus" AS ENUM ('PENDING', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED', 'OVERDUE');
 
 -- CreateEnum
-CREATE TYPE "TaskStatus" AS ENUM ('NOT_ASSIGNED', 'ASSIGNED', 'IN_PROGRESS', 'COMPLETED', 'OVERDUE');
+CREATE TYPE "TaskStatus" AS ENUM ('NOT_ASSIGNED', 'ASSIGNED', 'IN_PROGRESS', 'PAUSED', 'COMPLETED', 'OVERDUE');
 
 -- CreateEnum
-CREATE TYPE "TaskPriority" AS ENUM ('LOW', 'MEDIUM', 'HIGH');
+CREATE TYPE "TaskPriority" AS ENUM ('LOW', 'MEDIUM', 'HIGH', 'URGENT');
 
 -- CreateEnum
 CREATE TYPE "AskingStageType" AS ENUM ('ASKED', 'SHARED', 'VERIFIED', 'INFORMED_TEAM');
@@ -81,11 +81,14 @@ CREATE TABLE "services" (
     "is_mandatory" BOOLEAN NOT NULL DEFAULT true,
     "has_task_count" BOOLEAN NOT NULL DEFAULT false,
     "task_count" INTEGER,
+    "requires_completion_note" BOOLEAN NOT NULL DEFAULT false,
     "is_active" BOOLEAN NOT NULL DEFAULT true,
     "created_by" VARCHAR(255),
     "created_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMPTZ(6) NOT NULL,
     "metadata" JSONB,
+    "auto_assign_enabled" BOOLEAN NOT NULL DEFAULT false,
+    "auto_assign_user_id" VARCHAR(255),
 
     CONSTRAINT "services_pkey" PRIMARY KEY ("id")
 );
@@ -94,6 +97,7 @@ CREATE TABLE "services" (
 CREATE TABLE "asking_details" (
     "id" TEXT NOT NULL,
     "service_id" TEXT NOT NULL,
+    "detail" TEXT,
     "created_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMPTZ(6) NOT NULL,
 
@@ -146,15 +150,17 @@ CREATE TABLE "orders" (
     "id" TEXT NOT NULL,
     "order_number" VARCHAR(50) NOT NULL,
     "order_type_id" TEXT NOT NULL,
-    "customer_name" VARCHAR(255) NOT NULL,
-    "customer_email" VARCHAR(255) NOT NULL,
-    "customer_phone" VARCHAR(50) NOT NULL,
+    "customer_name" VARCHAR(255),
+    "customer_email" VARCHAR(255),
+    "customer_phone" VARCHAR(50),
     "amount" DECIMAL(12,2) NOT NULL,
     "order_date" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "delivery_date" TIMESTAMPTZ(6) NOT NULL,
     "delivery_time" VARCHAR(50),
     "notes" TEXT,
+    "folder_link" TEXT,
     "status" "OrderStatus" NOT NULL DEFAULT 'PENDING',
+    "is_customized" BOOLEAN NOT NULL DEFAULT false,
     "created_by" VARCHAR(255),
     "created_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMPTZ(6) NOT NULL,
@@ -169,6 +175,8 @@ CREATE TABLE "order_services" (
     "id" TEXT NOT NULL,
     "order_id" TEXT NOT NULL,
     "service_id" TEXT NOT NULL,
+    "target_name" VARCHAR(255),
+    "description" TEXT,
     "created_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMPTZ(6) NOT NULL,
 
@@ -179,16 +187,19 @@ CREATE TABLE "order_services" (
 CREATE TABLE "tasks" (
     "id" TEXT NOT NULL,
     "order_id" TEXT NOT NULL,
-    "service_id" TEXT NOT NULL,
+    "order_service_id" TEXT,
+    "service_id" TEXT,
     "team_id" TEXT NOT NULL,
     "title" VARCHAR(500) NOT NULL,
     "description" TEXT,
+    "notes" TEXT,
     "assigned_to" VARCHAR(255),
     "priority" "TaskPriority" NOT NULL DEFAULT 'MEDIUM',
     "status" "TaskStatus" NOT NULL DEFAULT 'NOT_ASSIGNED',
     "deadline" TIMESTAMPTZ(6),
     "started_at" TIMESTAMPTZ(6),
     "completed_at" TIMESTAMPTZ(6),
+    "is_mandatory" BOOLEAN NOT NULL DEFAULT false,
     "created_by" VARCHAR(255),
     "created_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMPTZ(6) NOT NULL,
@@ -201,6 +212,7 @@ CREATE TABLE "tasks" (
 CREATE TABLE "asking_tasks" (
     "id" TEXT NOT NULL,
     "order_id" TEXT NOT NULL,
+    "order_service_id" TEXT,
     "service_id" TEXT NOT NULL,
     "team_id" TEXT NOT NULL,
     "title" VARCHAR(500) NOT NULL,
@@ -211,9 +223,12 @@ CREATE TABLE "asking_tasks" (
     "current_stage" "AskingStageType" NOT NULL DEFAULT 'ASKED',
     "priority" "TaskPriority" NOT NULL DEFAULT 'MEDIUM',
     "deadline" TIMESTAMPTZ(6),
+    "notes" TEXT,
+    "notes_updated_by" VARCHAR(255),
     "created_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMPTZ(6) NOT NULL,
     "completed_at" TIMESTAMPTZ(6),
+    "completed_by" VARCHAR(255),
     "metadata" JSONB,
 
     CONSTRAINT "asking_tasks_pkey" PRIMARY KEY ("id")
@@ -224,13 +239,12 @@ CREATE TABLE "asking_task_stages" (
     "id" TEXT NOT NULL,
     "asking_task_id" TEXT NOT NULL,
     "stage" "AskingStageType" NOT NULL,
-    "initial_confirmation" VARCHAR(255),
-    "initial_staff" VARCHAR(255),
-    "update_request" VARCHAR(255),
-    "update_staff" VARCHAR(255),
-    "completed_by" VARCHAR(255),
-    "completed_at" TIMESTAMPTZ(6),
-    "notes" TEXT,
+    "initial_confirmation_value" VARCHAR(50),
+    "initial_confirmation_updated_by" VARCHAR(255),
+    "initial_confirmation_updated_at" TIMESTAMPTZ(6),
+    "update_request_value" VARCHAR(100),
+    "update_request_updated_by" VARCHAR(255),
+    "update_request_updated_at" TIMESTAMPTZ(6),
     "created_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMPTZ(6) NOT NULL,
 
@@ -390,10 +404,13 @@ CREATE INDEX "order_services_order_id_idx" ON "order_services"("order_id");
 CREATE INDEX "order_services_service_id_idx" ON "order_services"("service_id");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "order_services_order_id_service_id_key" ON "order_services"("order_id", "service_id");
+CREATE INDEX "order_services_order_id_service_id_idx" ON "order_services"("order_id", "service_id");
 
 -- CreateIndex
 CREATE INDEX "tasks_order_id_status_idx" ON "tasks"("order_id", "status");
+
+-- CreateIndex
+CREATE INDEX "tasks_order_service_id_idx" ON "tasks"("order_service_id");
 
 -- CreateIndex
 CREATE INDEX "tasks_service_id_idx" ON "tasks"("service_id");
@@ -420,6 +437,9 @@ CREATE INDEX "tasks_created_at_idx" ON "tasks"("created_at" DESC);
 CREATE INDEX "asking_tasks_order_id_current_stage_idx" ON "asking_tasks"("order_id", "current_stage");
 
 -- CreateIndex
+CREATE INDEX "asking_tasks_order_service_id_idx" ON "asking_tasks"("order_service_id");
+
+-- CreateIndex
 CREATE INDEX "asking_tasks_service_id_idx" ON "asking_tasks"("service_id");
 
 -- CreateIndex
@@ -435,6 +455,9 @@ CREATE INDEX "asking_tasks_current_stage_priority_idx" ON "asking_tasks"("curren
 CREATE INDEX "asking_tasks_deadline_idx" ON "asking_tasks"("deadline");
 
 -- CreateIndex
+CREATE INDEX "asking_tasks_is_flagged_idx" ON "asking_tasks"("is_flagged");
+
+-- CreateIndex
 CREATE INDEX "asking_tasks_created_at_idx" ON "asking_tasks"("created_at" DESC);
 
 -- CreateIndex
@@ -444,7 +467,7 @@ CREATE INDEX "asking_task_stages_asking_task_id_stage_idx" ON "asking_task_stage
 CREATE INDEX "asking_task_stages_stage_idx" ON "asking_task_stages"("stage");
 
 -- CreateIndex
-CREATE INDEX "asking_task_stages_completed_at_idx" ON "asking_task_stages"("completed_at");
+CREATE INDEX "asking_task_stages_created_at_idx" ON "asking_task_stages"("created_at" DESC);
 
 -- CreateIndex
 CREATE INDEX "audit_logs_entity_type_entity_id_idx" ON "audit_logs"("entity_type", "entity_id");
@@ -477,6 +500,9 @@ ALTER TABLE "services" ADD CONSTRAINT "services_team_id_fkey" FOREIGN KEY ("team
 ALTER TABLE "services" ADD CONSTRAINT "services_created_by_fkey" FOREIGN KEY ("created_by") REFERENCES "users"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
+ALTER TABLE "services" ADD CONSTRAINT "services_auto_assign_user_id_fkey" FOREIGN KEY ("auto_assign_user_id") REFERENCES "users"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
 ALTER TABLE "asking_details" ADD CONSTRAINT "asking_details_service_id_fkey" FOREIGN KEY ("service_id") REFERENCES "services"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
@@ -507,7 +533,10 @@ ALTER TABLE "order_services" ADD CONSTRAINT "order_services_service_id_fkey" FOR
 ALTER TABLE "tasks" ADD CONSTRAINT "tasks_order_id_fkey" FOREIGN KEY ("order_id") REFERENCES "orders"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "tasks" ADD CONSTRAINT "tasks_service_id_fkey" FOREIGN KEY ("service_id") REFERENCES "services"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "tasks" ADD CONSTRAINT "tasks_order_service_id_fkey" FOREIGN KEY ("order_service_id") REFERENCES "order_services"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "tasks" ADD CONSTRAINT "tasks_service_id_fkey" FOREIGN KEY ("service_id") REFERENCES "services"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "tasks" ADD CONSTRAINT "tasks_team_id_fkey" FOREIGN KEY ("team_id") REFERENCES "teams"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
@@ -522,6 +551,9 @@ ALTER TABLE "tasks" ADD CONSTRAINT "tasks_created_by_fkey" FOREIGN KEY ("created
 ALTER TABLE "asking_tasks" ADD CONSTRAINT "asking_tasks_order_id_fkey" FOREIGN KEY ("order_id") REFERENCES "orders"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
+ALTER TABLE "asking_tasks" ADD CONSTRAINT "asking_tasks_order_service_id_fkey" FOREIGN KEY ("order_service_id") REFERENCES "order_services"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
 ALTER TABLE "asking_tasks" ADD CONSTRAINT "asking_tasks_service_id_fkey" FOREIGN KEY ("service_id") REFERENCES "services"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
@@ -531,7 +563,19 @@ ALTER TABLE "asking_tasks" ADD CONSTRAINT "asking_tasks_team_id_fkey" FOREIGN KE
 ALTER TABLE "asking_tasks" ADD CONSTRAINT "asking_tasks_assigned_to_fkey" FOREIGN KEY ("assigned_to") REFERENCES "users"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
+ALTER TABLE "asking_tasks" ADD CONSTRAINT "asking_tasks_completed_by_fkey" FOREIGN KEY ("completed_by") REFERENCES "users"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "asking_tasks" ADD CONSTRAINT "asking_tasks_notes_updated_by_fkey" FOREIGN KEY ("notes_updated_by") REFERENCES "users"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
 ALTER TABLE "asking_task_stages" ADD CONSTRAINT "asking_task_stages_asking_task_id_fkey" FOREIGN KEY ("asking_task_id") REFERENCES "asking_tasks"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "asking_task_stages" ADD CONSTRAINT "asking_task_stages_initial_confirmation_updated_by_fkey" FOREIGN KEY ("initial_confirmation_updated_by") REFERENCES "users"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "asking_task_stages" ADD CONSTRAINT "asking_task_stages_update_request_updated_by_fkey" FOREIGN KEY ("update_request_updated_by") REFERENCES "users"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "audit_logs" ADD CONSTRAINT "audit_logs_performed_by_fkey" FOREIGN KEY ("performed_by") REFERENCES "users"("id") ON DELETE RESTRICT ON UPDATE CASCADE;

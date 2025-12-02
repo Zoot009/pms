@@ -1,5 +1,6 @@
 "use client"
 
+import { useEffect, useState } from "react"
 import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
 import {
@@ -85,11 +86,17 @@ interface AppSidebarProps extends React.ComponentProps<typeof Sidebar> {
   }
   dashboardHref: string
   navGroups: NavGroup[]
+  environment?: string
 }
 
-export function AppSidebar({ user, dashboardHref, navGroups, ...props }: AppSidebarProps) {
+export function AppSidebar({ user, dashboardHref, navGroups, environment = 'development', ...props }: AppSidebarProps) {
   const pathname = usePathname()
   const router = useRouter()
+  const [mounted, setMounted] = useState(false)
+
+  useEffect(() => {
+    setMounted(true)
+  }, [])
 
   const handleLogout = async () => {
     await fetch("/api/auth/logout", { method: "POST" })
@@ -120,6 +127,13 @@ export function AppSidebar({ user, dashboardHref, navGroups, ...props }: AppSide
       .join(" ")
   }
 
+  const getEnvironmentLabel = () => {
+    if (!mounted) return 'PMS Dashboard'
+    if (environment === 'kp_production') return 'PMS Dashboard (KP)'
+    if (environment === 'zoot_production') return 'PMS Dashboard (Zoot)'
+    return 'PMS Dashboard'
+  }
+
   return (
     <Sidebar collapsible="icon" {...props}>
       <SidebarHeader>
@@ -131,7 +145,7 @@ export function AppSidebar({ user, dashboardHref, navGroups, ...props }: AppSide
                   <Webhook className="size-4 text-black dark:text-white" />
                 </div>
                 <div className="grid flex-1 text-left text-sm leading-tight">
-                  <span className="truncate font-semibold">PMS Dashboard</span>
+                  <span className="truncate font-semibold">{getEnvironmentLabel()}</span>
                   <span className="truncate text-xs">{formatRoleName(user.role)}</span>
                 </div>
               </Link>

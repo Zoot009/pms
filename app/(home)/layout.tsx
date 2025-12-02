@@ -19,6 +19,7 @@ export default async function HomeLayout({
   children: React.ReactNode
   params: Promise<{ [key: string]: string | string[] | undefined }>
 }) {
+  const environment = process.env.ENVIRONMENT || 'development'
   const user = await getCurrentUser()
 
   if (!user) {
@@ -79,6 +80,7 @@ export default async function HomeLayout({
         }}
         dashboardHref={dashboardHref}
         navGroups={navGroups}
+        environment={environment}
       />
       <SidebarInset>
         <PageHeader />
