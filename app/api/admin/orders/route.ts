@@ -144,7 +144,19 @@ export async function POST(req: NextRequest) {
       include: {
         services: {
           include: {
-            service: true,
+            service: {
+              select: {
+                id: true,
+                name: true,
+                slug: true,
+                type: true,
+                description: true,
+                teamId: true,
+                isMandatory: true,
+                autoAssignEnabled: true,
+                autoAssignUserId: true,
+              },
+            },
           },
         },
       },
@@ -251,13 +263,21 @@ export async function POST(req: NextRequest) {
               ? `${service.name} - ${orderService.targetName}`
               : `${service.name} - ${newOrder.orderNumber}`
 
-            // Fetch team info
+            // Fetch team info and auto-assign fields
             const fullService = await tx.service.findUnique({
               where: { id: orderService.serviceId },
-              select: { teamId: true }
+              select: { 
+                teamId: true,
+                autoAssignEnabled: true,
+                autoAssignUserId: true,
+              }
             })
 
-            // Tasks start as NOT_ASSIGNED, will be auto-assigned when folderLink is added
+            // Check if order has folderLink and service has auto-assignment enabled
+            const shouldAutoAssign = newOrder.folderLink && fullService?.autoAssignEnabled && fullService?.autoAssignUserId
+            const assignedTo = shouldAutoAssign ? fullService.autoAssignUserId : null
+            const status = assignedTo ? 'ASSIGNED' : 'NOT_ASSIGNED'
+
             await tx.task.create({
               data: {
                 orderId: newOrder.id,
@@ -266,7 +286,8 @@ export async function POST(req: NextRequest) {
                 teamId: fullService?.teamId || service.teamId,
                 title: taskTitle,
                 description: orderService.description || null,
-                status: 'NOT_ASSIGNED',
+                assignedTo,
+                status,
                 priority: 'MEDIUM',
               },
             })
@@ -286,15 +307,26 @@ export async function POST(req: NextRequest) {
 
             // Fetch full service details if teamId is missing
             let teamId = service.teamId
+            let autoAssignEnabled = false
+            let autoAssignUserId = null
             if (!teamId) {
               const fullService = await tx.service.findUnique({
                 where: { id: orderService.serviceId },
-                select: { teamId: true }
+                select: { 
+                  teamId: true,
+                  autoAssignEnabled: true,
+                  autoAssignUserId: true,
+                }
               })
               teamId = fullService?.teamId
+              autoAssignEnabled = fullService?.autoAssignEnabled || false
+              autoAssignUserId = fullService?.autoAssignUserId || null
             }
 
-            // Asking tasks start unassigned, will be auto-assigned when folderLink is added
+            // Check if order has folderLink and service has auto-assignment enabled
+            const shouldAutoAssign = newOrder.folderLink && autoAssignEnabled && autoAssignUserId
+            const assignedTo = shouldAutoAssign ? autoAssignUserId : null
+
             await tx.askingTask.create({
               data: {
                 orderId: newOrder.id,
@@ -303,6 +335,7 @@ export async function POST(req: NextRequest) {
                 teamId: teamId!,
                 title: taskTitle,
                 description: orderService.description || `Asking service for order ${newOrder.orderNumber}`,
+                assignedTo,
                 currentStage: 'ASKED',
                 priority: 'MEDIUM',
               },

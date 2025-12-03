@@ -384,7 +384,18 @@ export async function PATCH(
         
         // Get service details
         const service = await tx.service.findUnique({
-          where: { id: serviceId }
+          where: { id: serviceId },
+          select: {
+            id: true,
+            name: true,
+            type: true,
+            teamId: true,
+            isMandatory: true,
+            hasTaskCount: true,
+            taskCount: true,
+            autoAssignEnabled: true,
+            autoAssignUserId: true,
+          },
         })
 
         if (!service) {

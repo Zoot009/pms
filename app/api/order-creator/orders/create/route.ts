@@ -31,7 +31,19 @@ export async function POST(request: NextRequest) {
       include: {
         services: {
           include: {
-            service: true,
+            service: {
+              select: {
+                id: true,
+                name: true,
+                slug: true,
+                type: true,
+                description: true,
+                teamId: true,
+                isMandatory: true,
+                autoAssignEnabled: true,
+                autoAssignUserId: true,
+              },
+            },
           },
         },
       },
@@ -72,7 +84,11 @@ export async function POST(request: NextRequest) {
 
       // Create tasks based on service type
       if (orderTypeService.service.type === 'SERVICE_TASK') {
-        // Tasks start as NOT_ASSIGNED, will be auto-assigned when folderLink is added
+        // Check if order has folderLink and service has auto-assignment enabled
+        const shouldAutoAssign = data.folderLink && orderTypeService.service.autoAssignEnabled && orderTypeService.service.autoAssignUserId
+        const assignedTo = shouldAutoAssign ? orderTypeService.service.autoAssignUserId : null
+        const status = assignedTo ? 'ASSIGNED' : 'NOT_ASSIGNED'
+        
         await prisma.task.create({
           data: {
             orderId: order.id,
@@ -80,14 +96,18 @@ export async function POST(request: NextRequest) {
             teamId: orderTypeService.service.teamId,
             title: orderTypeService.service.name,
             description: orderTypeService.service.description,
-            status: 'NOT_ASSIGNED',
+            assignedTo,
+            status,
             priority: 'MEDIUM',
             deadline: order.deliveryDate,
             isMandatory: orderTypeService.service.isMandatory,
           },
         })
       } else if (orderTypeService.service.type === 'ASKING_SERVICE') {
-        // Asking tasks start unassigned, will be auto-assigned when folderLink is added
+        // Check if order has folderLink and service has auto-assignment enabled
+        const shouldAutoAssign = data.folderLink && orderTypeService.service.autoAssignEnabled && orderTypeService.service.autoAssignUserId
+        const assignedTo = shouldAutoAssign ? orderTypeService.service.autoAssignUserId : null
+        
         await prisma.askingTask.create({
           data: {
             orderId: order.id,
@@ -95,6 +115,7 @@ export async function POST(request: NextRequest) {
             teamId: orderTypeService.service.teamId,
             title: orderTypeService.service.name,
             description: orderTypeService.service.description,
+            assignedTo,
             currentStage: 'ASKED',
             priority: 'MEDIUM',
             deadline: order.deliveryDate,
