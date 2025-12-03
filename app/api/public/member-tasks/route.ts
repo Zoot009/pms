@@ -103,7 +103,7 @@ export async function GET(request: NextRequest) {
     const askingTasks = await prisma.askingTask.findMany({
       where: {
         completedAt: dateFilter,
-        assignedTo: { not: null },
+        completedBy: { not: null },
       },
       include: {
         assignedUser: {
@@ -224,17 +224,17 @@ export async function GET(request: NextRequest) {
 
     // Process asking tasks
     for (const task of askingTasks) {
-      if (!task.assignedUser) continue
+      if (!task.completedUser) continue
 
-      const userId = task.assignedUser.id
+      const userId = task.completedUser.id
       
       if (!memberTasksMap.has(userId)) {
         memberTasksMap.set(userId, {
           member: {
-            id: task.assignedUser.id,
-            displayName: task.assignedUser.displayName,
-            email: task.assignedUser.email,
-            employeeId: task.assignedUser.employeeId,
+            id: task.completedUser.id,
+            displayName: task.completedUser.displayName,
+            email: task.completedUser.email,
+            employeeId: task.completedUser.employeeId,
           },
           serviceTasks: [],
           askingTasks: [],
