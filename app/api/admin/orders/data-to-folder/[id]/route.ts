@@ -34,20 +34,106 @@ export async function PATCH(
       return NextResponse.json({ message: 'Order not found' }, { status: 404 })
     }
 
-    // Update order with folder link
-    const updatedOrder = await prisma.order.update({
-      where: { id },
-      data: {
-        folderLink,
-      },
-      include: {
-        orderType: {
-          select: {
-            id: true,
-            name: true,
+    // Update order with folder link and auto-assign tasks
+    const updatedOrder = await prisma.$transaction(async (tx) => {
+      // Update the order
+      const order = await tx.order.update({
+        where: { id },
+        data: {
+          folderLink,
+        },
+        include: {
+          orderType: {
+            select: {
+              id: true,
+              name: true,
+            },
           },
         },
-      },
+      })
+
+      // Auto-assign unassigned tasks that have auto-assign enabled services
+      const unassignedTasks = await tx.task.findMany({
+        where: {
+          orderId: id,
+          assignedTo: null,
+        },
+        include: {
+          service: {
+            select: {
+              id: true,
+              name: true,
+              autoAssignEnabled: true,
+              autoAssignUserId: true,
+            },
+          },
+        },
+      })
+
+      console.log('[ADMIN FOLDER-LINK AUTO-ASSIGN] Order ID:', id)
+      console.log('[ADMIN FOLDER-LINK AUTO-ASSIGN] Folder link added:', folderLink)
+      console.log('[ADMIN FOLDER-LINK AUTO-ASSIGN] Found unassigned tasks:', unassignedTasks.length)
+
+      for (const task of unassignedTasks) {
+        console.log('[ADMIN FOLDER-LINK AUTO-ASSIGN] Checking task:', task.title)
+        console.log('[ADMIN FOLDER-LINK AUTO-ASSIGN] Service autoAssignEnabled:', task.service?.autoAssignEnabled)
+        console.log('[ADMIN FOLDER-LINK AUTO-ASSIGN] Service autoAssignUserId:', task.service?.autoAssignUserId)
+        
+        if (task.service?.autoAssignEnabled && task.service?.autoAssignUserId) {
+          console.log('[ADMIN FOLDER-LINK AUTO-ASSIGN] ✓ Auto-assigning task:', task.title, 'to user:', task.service.autoAssignUserId)
+          
+          await tx.task.update({
+            where: { id: task.id },
+            data: {
+              assignedTo: task.service.autoAssignUserId,
+              status: 'ASSIGNED',
+            },
+          })
+        } else {
+          console.log('[ADMIN FOLDER-LINK AUTO-ASSIGN] ✗ Skipping task (auto-assign not enabled or no user set)')
+        }
+      }
+
+      // Auto-assign unassigned asking tasks that have auto-assign enabled services
+      const unassignedAskingTasks = await tx.askingTask.findMany({
+        where: {
+          orderId: id,
+          assignedTo: null,
+        },
+        include: {
+          service: {
+            select: {
+              id: true,
+              name: true,
+              autoAssignEnabled: true,
+              autoAssignUserId: true,
+            },
+          },
+        },
+      })
+
+      console.log('[ADMIN FOLDER-LINK AUTO-ASSIGN] Found unassigned asking tasks:', unassignedAskingTasks.length)
+
+      for (const askingTask of unassignedAskingTasks) {
+        console.log('[ADMIN FOLDER-LINK AUTO-ASSIGN] Checking asking task:', askingTask.title)
+        console.log('[ADMIN FOLDER-LINK AUTO-ASSIGN] Service autoAssignEnabled:', askingTask.service?.autoAssignEnabled)
+        console.log('[ADMIN FOLDER-LINK AUTO-ASSIGN] Service autoAssignUserId:', askingTask.service?.autoAssignUserId)
+        
+        if (askingTask.service?.autoAssignEnabled && askingTask.service?.autoAssignUserId) {
+          console.log('[ADMIN FOLDER-LINK AUTO-ASSIGN] ✓ Auto-assigning asking task:', askingTask.title, 'to user:', askingTask.service.autoAssignUserId)
+          
+          await tx.askingTask.update({
+            where: { id: askingTask.id },
+            data: {
+              assignedTo: askingTask.service.autoAssignUserId,
+            },
+          })
+        } else {
+          console.log('[ADMIN FOLDER-LINK AUTO-ASSIGN] ✗ Skipping asking task (auto-assign not enabled or no user set)')
+        }
+      }
+
+      return order
     })
 
     // Create audit log
