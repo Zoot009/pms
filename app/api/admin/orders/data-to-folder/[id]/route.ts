@@ -70,18 +70,8 @@ export async function PATCH(
         },
       })
 
-      console.log('[ADMIN FOLDER-LINK AUTO-ASSIGN] Order ID:', id)
-      console.log('[ADMIN FOLDER-LINK AUTO-ASSIGN] Folder link added:', folderLink)
-      console.log('[ADMIN FOLDER-LINK AUTO-ASSIGN] Found unassigned tasks:', unassignedTasks.length)
-
       for (const task of unassignedTasks) {
-        console.log('[ADMIN FOLDER-LINK AUTO-ASSIGN] Checking task:', task.title)
-        console.log('[ADMIN FOLDER-LINK AUTO-ASSIGN] Service autoAssignEnabled:', task.service?.autoAssignEnabled)
-        console.log('[ADMIN FOLDER-LINK AUTO-ASSIGN] Service autoAssignUserId:', task.service?.autoAssignUserId)
-        
         if (task.service?.autoAssignEnabled && task.service?.autoAssignUserId) {
-          console.log('[ADMIN FOLDER-LINK AUTO-ASSIGN] ✓ Auto-assigning task:', task.title, 'to user:', task.service.autoAssignUserId)
-          
           await tx.task.update({
             where: { id: task.id },
             data: {
@@ -89,8 +79,6 @@ export async function PATCH(
               status: 'ASSIGNED',
             },
           })
-        } else {
-          console.log('[ADMIN FOLDER-LINK AUTO-ASSIGN] ✗ Skipping task (auto-assign not enabled or no user set)')
         }
       }
 
@@ -112,24 +100,14 @@ export async function PATCH(
         },
       })
 
-      console.log('[ADMIN FOLDER-LINK AUTO-ASSIGN] Found unassigned asking tasks:', unassignedAskingTasks.length)
-
       for (const askingTask of unassignedAskingTasks) {
-        console.log('[ADMIN FOLDER-LINK AUTO-ASSIGN] Checking asking task:', askingTask.title)
-        console.log('[ADMIN FOLDER-LINK AUTO-ASSIGN] Service autoAssignEnabled:', askingTask.service?.autoAssignEnabled)
-        console.log('[ADMIN FOLDER-LINK AUTO-ASSIGN] Service autoAssignUserId:', askingTask.service?.autoAssignUserId)
-        
         if (askingTask.service?.autoAssignEnabled && askingTask.service?.autoAssignUserId) {
-          console.log('[ADMIN FOLDER-LINK AUTO-ASSIGN] ✓ Auto-assigning asking task:', askingTask.title, 'to user:', askingTask.service.autoAssignUserId)
-          
           await tx.askingTask.update({
             where: { id: askingTask.id },
             data: {
               assignedTo: askingTask.service.autoAssignUserId,
             },
           })
-        } else {
-          console.log('[ADMIN FOLDER-LINK AUTO-ASSIGN] ✗ Skipping asking task (auto-assign not enabled or no user set)')
         }
       }
 

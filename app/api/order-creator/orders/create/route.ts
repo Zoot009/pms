@@ -85,18 +85,9 @@ export async function POST(request: NextRequest) {
       // Create tasks based on service type
       if (orderTypeService.service.type === 'SERVICE_TASK') {
         // Check if order has folderLink and service has auto-assignment enabled
-        console.log('[ORDER-CREATOR AUTO-ASSIGN DEBUG] Service:', orderTypeService.service.name)
-        console.log('[ORDER-CREATOR AUTO-ASSIGN DEBUG] Has folderLink:', !!data.folderLink)
-        console.log('[ORDER-CREATOR AUTO-ASSIGN DEBUG] autoAssignEnabled:', orderTypeService.service.autoAssignEnabled)
-        console.log('[ORDER-CREATOR AUTO-ASSIGN DEBUG] autoAssignUserId:', orderTypeService.service.autoAssignUserId)
-        
         const shouldAutoAssign = data.folderLink && orderTypeService.service.autoAssignEnabled && orderTypeService.service.autoAssignUserId
         const assignedTo = shouldAutoAssign ? orderTypeService.service.autoAssignUserId : null
         const status = assignedTo ? 'ASSIGNED' : 'NOT_ASSIGNED'
-        
-        console.log('[ORDER-CREATOR AUTO-ASSIGN DEBUG] shouldAutoAssign:', shouldAutoAssign)
-        console.log('[ORDER-CREATOR AUTO-ASSIGN DEBUG] Final assignedTo:', assignedTo)
-        console.log('[ORDER-CREATOR AUTO-ASSIGN DEBUG] Final status:', status)
         
         await prisma.task.create({
           data: {
@@ -114,16 +105,8 @@ export async function POST(request: NextRequest) {
         })
       } else if (orderTypeService.service.type === 'ASKING_SERVICE') {
         // Check if order has folderLink and service has auto-assignment enabled
-        console.log('[ORDER-CREATOR AUTO-ASSIGN DEBUG] Asking Service:', orderTypeService.service.name)
-        console.log('[ORDER-CREATOR AUTO-ASSIGN DEBUG] Has folderLink:', !!data.folderLink)
-        console.log('[ORDER-CREATOR AUTO-ASSIGN DEBUG] autoAssignEnabled:', orderTypeService.service.autoAssignEnabled)
-        console.log('[ORDER-CREATOR AUTO-ASSIGN DEBUG] autoAssignUserId:', orderTypeService.service.autoAssignUserId)
-        
         const shouldAutoAssign = data.folderLink && orderTypeService.service.autoAssignEnabled && orderTypeService.service.autoAssignUserId
         const assignedTo = shouldAutoAssign ? orderTypeService.service.autoAssignUserId : null
-        
-        console.log('[ORDER-CREATOR AUTO-ASSIGN DEBUG] shouldAutoAssign:', shouldAutoAssign)
-        console.log('[ORDER-CREATOR AUTO-ASSIGN DEBUG] Final assignedTo:', assignedTo)
         
         await prisma.askingTask.create({
           data: {

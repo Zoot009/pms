@@ -273,19 +273,10 @@ export async function POST(req: NextRequest) {
               }
             })
 
-            console.log('[ADMIN AUTO-ASSIGN DEBUG] Service ID:', orderService.serviceId)
-            console.log('[ADMIN AUTO-ASSIGN DEBUG] Has folderLink:', !!newOrder.folderLink)
-            console.log('[ADMIN AUTO-ASSIGN DEBUG] autoAssignEnabled:', fullService?.autoAssignEnabled)
-            console.log('[ADMIN AUTO-ASSIGN DEBUG] autoAssignUserId:', fullService?.autoAssignUserId)
-
             // Check if order has folderLink and service has auto-assignment enabled
             const shouldAutoAssign = newOrder.folderLink && fullService?.autoAssignEnabled && fullService?.autoAssignUserId
             const assignedTo = shouldAutoAssign ? fullService.autoAssignUserId : null
             const status = assignedTo ? 'ASSIGNED' : 'NOT_ASSIGNED'
-
-            console.log('[ADMIN AUTO-ASSIGN DEBUG] shouldAutoAssign:', shouldAutoAssign)
-            console.log('[ADMIN AUTO-ASSIGN DEBUG] Final assignedTo:', assignedTo)
-            console.log('[ADMIN AUTO-ASSIGN DEBUG] Final status:', status)
 
             await tx.task.create({
               data: {
@@ -332,17 +323,9 @@ export async function POST(req: NextRequest) {
               autoAssignUserId = fullService?.autoAssignUserId || null
             }
 
-            console.log('[ADMIN AUTO-ASSIGN DEBUG] Asking Service ID:', orderService.serviceId)
-            console.log('[ADMIN AUTO-ASSIGN DEBUG] Has folderLink:', !!newOrder.folderLink)
-            console.log('[ADMIN AUTO-ASSIGN DEBUG] autoAssignEnabled:', autoAssignEnabled)
-            console.log('[ADMIN AUTO-ASSIGN DEBUG] autoAssignUserId:', autoAssignUserId)
-
             // Check if order has folderLink and service has auto-assignment enabled
             const shouldAutoAssign = newOrder.folderLink && autoAssignEnabled && autoAssignUserId
             const assignedTo = shouldAutoAssign ? autoAssignUserId : null
-
-            console.log('[ADMIN AUTO-ASSIGN DEBUG] shouldAutoAssign:', shouldAutoAssign)
-            console.log('[ADMIN AUTO-ASSIGN DEBUG] Final assignedTo:', assignedTo)
 
             await tx.askingTask.create({
               data: {
