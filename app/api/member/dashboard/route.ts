@@ -41,17 +41,46 @@ export async function GET() {
       },
     })
 
+    // Get all asking tasks completed by this member
+    const completedAskingTasks = await prisma.askingTask.findMany({
+      where: {
+        completedBy: user.id,
+      },
+      include: {
+        order: {
+          select: {
+            orderNumber: true,
+            customerName: true,
+            deliveryDate: true,
+          },
+        },
+        service: {
+          select: {
+            name: true,
+            type: true,
+          },
+        },
+      },
+      orderBy: {
+        completedAt: 'desc',
+      },
+    })
+
     // Calculate statistics
+    const completedAskingTodayCount = completedAskingTasks.filter(
+      (t) => t.completedAt && t.completedAt >= startOfToday
+    ).length
+
     const stats = {
       totalTasks: allTasks.length,
-      notStarted: allTasks.filter((t) => t.status === 'ASSIGNED').length,
-      pendingTasks: allTasks.filter((t) => t.status === 'NOT_ASSIGNED').length,
-      inProgress: allTasks.filter((t) => t.status === 'IN_PROGRESS').length,
-      completedToday: allTasks.filter(
+      assignedCount: allTasks.filter((t) => t.status === 'ASSIGNED').length,
+      inProgressCount: allTasks.filter((t) => t.status === 'IN_PROGRESS').length,
+      pausedCount: allTasks.filter((t) => t.status === 'PAUSED').length,
+      completedTodayCount: allTasks.filter(
         (t) => t.status === 'COMPLETED' && t.completedAt && t.completedAt >= startOfToday
-      ).length,
-      completedTotal: allTasks.filter((t) => t.status === 'COMPLETED').length,
-      overdue: allTasks.filter(
+      ).length + completedAskingTodayCount,
+      completedTotal: allTasks.filter((t) => t.status === 'COMPLETED').length + completedAskingTasks.length,
+      overdueCount: allTasks.filter(
         (t) =>
           t.status !== 'COMPLETED' && t.deadline && new Date(t.deadline) < now
       ).length,
