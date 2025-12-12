@@ -393,17 +393,17 @@ export default function DeliveryPage() {
               </Badge>
               <Badge variant="secondary">{order.orderType.name}</Badge>
               {deliveryStatus.type === 'complete' ? (
-                <Badge variant="outline" className="bg-green-50 text-green-700 border-green-300 flex items-center gap-1">
+                <Badge variant="outline" className="bg-green-50 dark:bg-green-950 text-green-700 dark:text-green-400 border-green-300 dark:border-green-700 flex items-center gap-1">
                   <CheckCircle2 className="h-3 w-3" />
                   {deliveryStatus.label}
                 </Badge>
               ) : deliveryStatus.type === 'partial' ? (
-                <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-300 flex items-center gap-1">
+                <Badge variant="outline" className="bg-blue-50 dark:bg-blue-950 text-blue-700 dark:text-blue-400 border-blue-300 dark:border-blue-700 flex items-center gap-1">
                   <Clock className="h-3 w-3" />
                   {deliveryStatus.label}
                 </Badge>
               ) : (
-                <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-300 flex items-center gap-1">
+                <Badge variant="outline" className="bg-amber-50 dark:bg-amber-950 text-amber-700 dark:text-amber-400 border-amber-300 dark:border-amber-700 flex items-center gap-1">
                   <AlertCircle className="h-3 w-3" />
                   {deliveryStatus.label}
                 </Badge>
@@ -447,7 +447,7 @@ export default function DeliveryPage() {
                 {order.statistics.completedTasks} / {order.statistics.totalTasks} completed
               </span>
             </div>
-            <div className="w-full bg-gray-200 rounded-full h-2">
+            <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
               <div
                 className={`h-2 rounded-full transition-all ${getProgressColor(
                   order.statistics.completedTasks,
@@ -460,22 +460,22 @@ export default function DeliveryPage() {
 
           {/* Statistics Grid */}
           <div className="grid grid-cols-3 gap-2">
-            <div className="flex items-center gap-1.5 p-2 bg-blue-50 rounded-lg">
-              <ListChecks className="h-3.5 w-3.5 text-blue-600 shrink-0" />
+            <div className="flex items-center gap-1.5 p-2 bg-blue-50 dark:bg-blue-950/50 rounded-lg">
+              <ListChecks className="h-3.5 w-3.5 text-blue-600 dark:text-blue-400 shrink-0" />
               <div className="min-w-0">
                 <p className="text-xs text-muted-foreground">Total</p>
                 <p className="text-sm font-bold">{order.statistics.totalTasks}</p>
               </div>
             </div>
-            <div className="flex items-center gap-1.5 p-2 bg-green-50 rounded-lg">
-              <CheckCircle2 className="h-3.5 w-3.5 text-green-600 shrink-0" />
+            <div className="flex items-center gap-1.5 p-2 bg-green-50 dark:bg-green-950/50 rounded-lg">
+              <CheckCircle2 className="h-3.5 w-3.5 text-green-600 dark:text-green-400 shrink-0" />
               <div className="min-w-0">
                 <p className="text-xs text-muted-foreground">Done</p>
                 <p className="text-sm font-bold">{order.statistics.completedTasks}</p>
               </div>
             </div>
-            <div className="flex items-center gap-1.5 p-2 bg-amber-50 rounded-lg">
-              <AlertCircle className="h-3.5 w-3.5 text-amber-600 shrink-0" />
+            <div className="flex items-center gap-1.5 p-2 bg-amber-50 dark:bg-amber-950/50 rounded-lg">
+              <AlertCircle className="h-3.5 w-3.5 text-amber-600 dark:text-amber-400 shrink-0" />
               <div className="min-w-0">
                 <p className="text-xs text-muted-foreground">Mand.</p>
                 <p className="text-sm font-bold">
@@ -617,7 +617,7 @@ export default function DeliveryPage() {
         <Card>
           <CardHeader className="pb-3">
             <CardDescription>All Tasks Complete</CardDescription>
-            <CardTitle className="text-3xl text-green-600">
+            <CardTitle className="text-3xl text-green-600 dark:text-green-400">
               {filteredOrders.filter(o => getDeliveryStatus(o).type === 'complete').length}
             </CardTitle>
           </CardHeader>
@@ -625,7 +625,7 @@ export default function DeliveryPage() {
         <Card>
           <CardHeader className="pb-3">
             <CardDescription>With Incomplete Tasks</CardDescription>
-            <CardTitle className="text-3xl text-amber-600">
+            <CardTitle className="text-3xl text-amber-600 dark:text-amber-400">
               {filteredOrders.filter(o => getDeliveryStatus(o).type !== 'complete').length}
             </CardTitle>
           </CardHeader>
@@ -714,12 +714,12 @@ export default function DeliveryPage() {
                               </Label>
                               <div className="flex items-center gap-2">
                                 {task.isCompleted ? (
-                                  <Badge variant="outline" className="bg-green-50 text-green-700 border-green-300 text-xs">
+                                  <Badge variant="outline" className="bg-green-50 dark:bg-green-950 text-green-700 dark:text-green-400 border-green-300 dark:border-green-700 text-xs">
                                     <CheckCircle2 className="h-3 w-3 mr-1" />
                                     Completed
                                   </Badge>
                                 ) : (
-                                  <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-300 text-xs">
+                                  <Badge variant="outline" className="bg-amber-50 dark:bg-amber-950 text-amber-700 dark:text-amber-400 border-amber-300 dark:border-amber-700 text-xs">
                                     <Clock className="h-3 w-3 mr-1" />
                                     Pending
                                   </Badge>
