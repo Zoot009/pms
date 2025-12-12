@@ -69,15 +69,6 @@ export async function GET(request: NextRequest) {
                 name: true,
               },
             },
-            askingTasks: {
-              include: {
-                service: {
-                  select: {
-                    name: true,
-                  },
-                },
-              },
-            },
           },
         },
         service: {
@@ -91,6 +82,43 @@ export async function GET(request: NextRequest) {
       },
       orderBy,
     })
+
+    // Fetch asking tasks for completed status
+    let askingTasks: any[] = []
+    if (statusFilter === 'completed') {
+      askingTasks = await prisma.askingTask.findMany({
+        where: {
+          completedBy: user.id,
+        },
+        include: {
+          order: {
+            select: {
+              id: true,
+              orderNumber: true,
+              customerName: true,
+              deliveryDate: true,
+              orderDate: true,
+              amount: true,
+              folderLink: true,
+              orderType: {
+                select: {
+                  name: true,
+                },
+              },
+            },
+          },
+          service: {
+            select: {
+              name: true,
+              type: true,
+            },
+          },
+        },
+        orderBy: {
+          completedAt: 'desc',
+        },
+      })
+    }
 
     // Group tasks by order
     const ordersMap = new Map()
@@ -106,12 +134,6 @@ export async function GET(request: NextRequest) {
           amount: task.order.amount,
           folderLink: task.order.folderLink,
           orderTypeName: task.order.orderType.name,
-          askingTasks: task.order.askingTasks.map((at: any) => ({
-            id: at.id,
-            title: at.title,
-            serviceName: at.service?.name || 'Unknown',
-            completedAt: at.completedAt,
-          })),
           tasks: [],
         })
       }
@@ -135,6 +157,38 @@ export async function GET(request: NextRequest) {
           requiresCompletionNote: task.service.requiresCompletionNote,
         } : undefined,
         createdAt: task.createdAt,
+      })
+    })
+
+    // Add asking tasks to the orders map (for completed status)
+    askingTasks.forEach((askingTask) => {
+      if (!ordersMap.has(askingTask.orderId)) {
+        ordersMap.set(askingTask.orderId, {
+          orderId: askingTask.order.id,
+          orderNumber: askingTask.order.orderNumber,
+          customerName: askingTask.order.customerName,
+          deliveryDate: askingTask.order.deliveryDate,
+          orderDate: askingTask.order.orderDate,
+          amount: askingTask.order.amount,
+          folderLink: askingTask.order.folderLink,
+          orderTypeName: askingTask.order.orderType.name,
+          tasks: [],
+        })
+      }
+      
+      ordersMap.get(askingTask.orderId).tasks.push({
+        id: askingTask.id,
+        title: askingTask.title,
+        status: 'COMPLETED',
+        priority: askingTask.priority,
+        deadline: askingTask.deadline,
+        completedAt: askingTask.completedAt,
+        notes: askingTask.notes,
+        serviceName: askingTask.service?.name || 'Asking Service',
+        serviceType: 'ASKING_SERVICE',
+        serviceTimeLimit: null,
+        createdAt: askingTask.createdAt,
+        isAskingTask: true,
       })
     })
 

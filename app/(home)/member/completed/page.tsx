@@ -21,14 +21,6 @@ import {
   ChevronRight
 } from 'lucide-react'
 import { format } from 'date-fns'
-import { toZonedTime } from 'date-fns-tz'
-
-// Helper function to convert to IST
-const formatInIST = (date: Date | string, formatStr: string) => {
-  const dateObj = typeof date === 'string' ? new Date(date) : date
-  const istDate = toZonedTime(dateObj, 'Asia/Kolkata')
-  return format(istDate, formatStr)
-}
 
 interface CompletedTask {
   id: string
@@ -38,7 +30,6 @@ interface CompletedTask {
   timeSpent: string | null
   completionNotes: string | null
   priority: string
-  taskType: 'TASK' | 'ASKING_TASK'
 }
 
 interface CompletedOrder {
@@ -78,88 +69,33 @@ export default function CompletedTasksPage() {
   const fetchCompletedTasks = async () => {
     try {
       setIsLoading(true)
-      
-      // Fetch regular completed tasks
-      const tasksResponse = await axios.get('/api/member/tasks', {
+      const response = await axios.get('/api/member/tasks', {
         params: {
           status: 'completed',
           sortBy: 'default'
         }
       })
       
-      // Fetch completed asking tasks
-      const askingTasksResponse = await axios.get('/api/member/asking-tasks', {
-        params: {
-          status: 'completed',
-          sortBy: 'default'
-        }
-      })
-      
-      // Create a map to group tasks by order
-      const ordersMap = new Map<string, any>()
-      
-      // Process regular tasks
-      tasksResponse.data.orders.forEach((order: any) => {
-        if (order.tasks.length > 0) {
-          if (!ordersMap.has(order.orderId)) {
-            ordersMap.set(order.orderId, {
-              orderId: order.orderId,
-              orderNumber: order.orderNumber,
-              customerName: order.customerName,
-              deliveryDate: order.deliveryDate,
-              amount: order.amount,
-              orderTypeName: order.orderTypeName,
-              tasks: []
-            })
-          }
-          
-          order.tasks.forEach((task: any) => {
-            ordersMap.get(order.orderId).tasks.push({
-              id: task.id,
-              title: task.title,
-              serviceName: task.serviceName,
-              completedAt: task.completedAt,
-              timeSpent: task.timeSpent,
-              completionNotes: task.completionNotes,
-              priority: task.priority,
-              taskType: 'TASK' as const
-            })
-          })
-        }
-      })
-      
-      // Process asking tasks
-      askingTasksResponse.data.orders.forEach((order: any) => {
-        if (order.tasks.length > 0) {
-          if (!ordersMap.has(order.orderId)) {
-            ordersMap.set(order.orderId, {
-              orderId: order.orderId,
-              orderNumber: order.orderNumber,
-              customerName: order.customerName,
-              deliveryDate: order.deliveryDate,
-              amount: order.amount,
-              orderTypeName: order.orderTypeName,
-              tasks: []
-            })
-          }
-          
-          order.tasks.forEach((task: any) => {
-            ordersMap.get(order.orderId).tasks.push({
-              id: task.id,
-              title: task.title,
-              serviceName: task.serviceName,
-              completedAt: task.completedAt,
-              timeSpent: null, // Asking tasks don't have time spent
-              completionNotes: task.notes,
-              priority: task.priority,
-              taskType: 'ASKING_TASK' as const
-            })
-          })
-        }
-      })
-      
-      // Convert map to array
-      const completedOrders: CompletedOrder[] = Array.from(ordersMap.values())
+      // Process orders and their completed tasks
+      const completedOrders: CompletedOrder[] = response.data.orders
+        .filter((order: any) => order.tasks.length > 0) // Only orders with completed tasks
+        .map((order: any) => ({
+          orderId: order.orderId,
+          orderNumber: order.orderNumber,
+          customerName: order.customerName,
+          deliveryDate: order.deliveryDate,
+          amount: order.amount,
+          orderTypeName: order.orderTypeName,
+          tasks: order.tasks.map((task: any) => ({
+            id: task.id,
+            title: task.title,
+            serviceName: task.serviceName,
+            completedAt: task.completedAt,
+            timeSpent: task.timeSpent,
+            completionNotes: task.completionNotes,
+            priority: task.priority
+          }))
+        }))
       
       // Sort orders by most recent completion
       completedOrders.sort((a, b) => {
@@ -397,25 +333,16 @@ export default function CompletedTasksPage() {
                       </div>
                     </TableCell>
                     <TableCell className="font-medium">{order.customerName}</TableCell>
-                    <TableCell>
-                      <div className="flex flex-col">
-                        <span>{task.serviceName}</span>
-                        {task.taskType === 'ASKING_TASK' && (
-                          <Badge variant="outline" className="w-fit mt-1 text-xs">
-                            Asking Task
-                          </Badge>
-                        )}
-                      </div>
-                    </TableCell>
+                    <TableCell>{task.serviceName}</TableCell>
                     <TableCell>
                       <div className="flex flex-col">
                         <span className="text-sm">
-                          {formatInIST(task.completedAt, 'MMM d, yyyy')}
+                          {format(new Date(task.completedAt), 'MMM d, yyyy')}
                         </span>
                         <span className="text-xs text-muted-foreground">
-                          {formatInIST(task.completedAt, 'hh:mm a')} IST
+                          {format(new Date(task.completedAt), 'hh:mm a')}
                         </span>
-                      </div>InIST(order.deliveryDate
+                      </div>
                     </TableCell>
                     <TableCell>{getPriorityBadge(task.priority)}</TableCell>
                     <TableCell>
