@@ -16,6 +16,7 @@ import {
   SidebarMenuItem,
 } from "@/components/ui/sidebar"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { Badge } from "@/components/ui/badge"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -46,6 +47,7 @@ import {
   PackageCheck,
   BarChart3,
   UserCog,
+  RotateCcw,
 } from "lucide-react"
 
 const iconMap: Record<string, LucideIcon> = {
@@ -64,12 +66,14 @@ const iconMap: Record<string, LucideIcon> = {
   PackageCheck,
   BarChart3,
   UserCog,
+  RotateCcw,
 }
 
 interface NavItem {
   title: string
   href: string
   icon: string
+  badge?: string
 }
 
 interface NavGroup {
@@ -87,9 +91,10 @@ interface AppSidebarProps extends React.ComponentProps<typeof Sidebar> {
   dashboardHref: string
   navGroups: NavGroup[]
   environment?: string
+  badgeCounts?: Record<string, number>
 }
 
-export function AppSidebar({ user, dashboardHref, navGroups, environment = 'development', ...props }: AppSidebarProps) {
+export function AppSidebar({ user, dashboardHref, navGroups, environment = 'development', badgeCounts = {}, ...props }: AppSidebarProps) {
   const pathname = usePathname()
   const router = useRouter()
   const [mounted, setMounted] = useState(false)
@@ -155,18 +160,20 @@ export function AppSidebar({ user, dashboardHref, navGroups, environment = 'deve
       </SidebarHeader>
 
       <SidebarContent>
-        <SidebarGroup>
-          <SidebarMenu>
-            <SidebarMenuItem>
-              <SidebarMenuButton asChild isActive={isItemActive(dashboardHref)}>
-                <Link href={dashboardHref}>
-                  <LayoutDashboard />
-                  <span>Dashboard</span>
-                </Link>
-              </SidebarMenuButton>
-            </SidebarMenuItem>
-          </SidebarMenu>
-        </SidebarGroup>
+        {!pathname?.startsWith('/revision') && (
+          <SidebarGroup>
+            <SidebarMenu>
+              <SidebarMenuItem>
+                <SidebarMenuButton asChild isActive={isItemActive(dashboardHref)}>
+                  <Link href={dashboardHref}>
+                    <LayoutDashboard />
+                    <span>Dashboard</span>
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+            </SidebarMenu>
+          </SidebarGroup>
+        )}
 
         {navGroups.map((group) => (
           <Collapsible key={group.title} asChild defaultOpen className="group/collapsible">
@@ -183,6 +190,7 @@ export function AppSidebar({ user, dashboardHref, navGroups, environment = 'deve
                     {group.items.map((item) => {
                       const Icon = iconMap[item.icon]
                       const isActive = isItemActive(item.href)
+                      const badgeCount = item.badge ? badgeCounts[item.badge] : undefined
 
                       return (
                         <SidebarMenuItem key={item.href}>
@@ -190,6 +198,14 @@ export function AppSidebar({ user, dashboardHref, navGroups, environment = 'deve
                             <Link href={item.href}>
                               {Icon && <Icon />}
                               <span>{item.title}</span>
+                              {badgeCount !== undefined && badgeCount > 0 && (
+                                <Badge 
+                                  variant="secondary" 
+                                  className="ml-auto h-5 w-5 shrink-0 items-center justify-center rounded-full p-0 text-xs"
+                                >
+                                  {badgeCount}
+                                </Badge>
+                              )}
                             </Link>
                           </SidebarMenuButton>
                         </SidebarMenuItem>

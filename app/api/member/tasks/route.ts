@@ -18,10 +18,16 @@ export async function GET(request: NextRequest) {
     const statusFilter = searchParams.get('status') || 'all' // all, active, paused, completed
     const priorityFilter = searchParams.get('priority') || 'all' // all, high, medium, low, urgent
     const sortBy = searchParams.get('sortBy') || 'default' // default, deadline, priority, orderDate, status
+    const revisionOnly = searchParams.get('revisionOnly') === 'true' // filter for revision tasks only
 
     // Build where clause
     const where: any = {
       assignedTo: user.id,
+    }
+
+    // Revision filter
+    if (revisionOnly) {
+      where.isRevisionTask = true
     }
 
     // Status filter
@@ -147,7 +153,8 @@ export async function GET(request: NextRequest) {
         startedAt: task.startedAt,
         completedAt: task.completedAt,
         notes: task.notes,
-        serviceName: task.service?.name || 'Custom Task',
+        isRevisionTask: task.isRevisionTask,
+        serviceName: task.isRevisionTask ? task.title : (task.service?.name || 'Custom Task'),
         serviceType: task.service?.type || 'CUSTOM',
         serviceTimeLimit: task.service?.timeLimit || null,
         service: task.service ? {

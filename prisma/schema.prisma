@@ -17,6 +17,7 @@ enum UserRole {
   ADMIN
   MEMBER
   ORDER_CREATOR
+  REVISION_MANAGER
 }
 
 enum ServiceType {
@@ -293,20 +294,25 @@ model Order {
   deliveryTime  String?     @map("delivery_time") @db.VarChar(50)
   notes         String?     @db.Text
   folderLink    String?     @map("folder_link") @db.Text
-  status        OrderStatus @default(PENDING)
-  isCustomized  Boolean     @default(false) @map("is_customized") // True if services were customized during creation
-  createdById   String?     @map("created_by") @db.VarChar(255)
-  createdAt     DateTime    @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt     DateTime    @updatedAt @map("updated_at") @db.Timestamptz(6)
-  completedAt   DateTime?   @map("completed_at") @db.Timestamptz(6)
-  metadata      Json?
+  status               OrderStatus @default(PENDING)
+  isCustomized         Boolean     @default(false) @map("is_customized") // True if services were customized during creation
+  isRevision           Boolean     @default(false) @map("is_revision") // True if this is a revision order
+  revisionOrderId      String?     @map("revision_order_id") // Links to original order if this is a revision
+  revisionCompletedAt  DateTime?   @map("revision_completed_at") @db.Timestamptz(6) // When revision was marked complete
+  createdById          String?     @map("created_by") @db.VarChar(255)
+  createdAt            DateTime    @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt            DateTime    @updatedAt @map("updated_at") @db.Timestamptz(6)
+  completedAt          DateTime?   @map("completed_at") @db.Timestamptz(6)
+  metadata             Json?
 
   // Relations
-  orderType    OrderType      @relation(fields: [orderTypeId], references: [id])
-  createdBy    User?          @relation("OrderCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
-  services     OrderService[]
-  tasks        Task[]
-  askingTasks  AskingTask[]
+  orderType        OrderType      @relation(fields: [orderTypeId], references: [id])
+  createdBy        User?          @relation("OrderCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  services         OrderService[]
+  tasks            Task[]
+  askingTasks      AskingTask[]
+  originalOrder    Order?         @relation("RevisionOrder", fields: [revisionOrderId], references: [id], onDelete: SetNull)
+  revisionOrders   Order[]        @relation("RevisionOrder")
 
   @@index([status])
   @@index([orderTypeId])
@@ -317,6 +323,9 @@ model Order {
   @@index([completedAt])
   @@index([customerEmail])
   @@index([createdAt(sort: Desc)])
+  @@index([isRevision])
+  @@index([revisionOrderId])
+  @@index([revisionCompletedAt])
   @@map("orders")
 }
 
@@ -361,6 +370,7 @@ model Task {
   startedAt        DateTime?    @map("started_at") @db.Timestamptz(6)
   completedAt      DateTime?    @map("completed_at") @db.Timestamptz(6)
   isMandatory      Boolean      @default(false) @map("is_mandatory")
+  isRevisionTask   Boolean      @default(false) @map("is_revision_task") // True if this is a revision task
   createdById      String?      @map("created_by") @db.VarChar(255)
   createdAt        DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt        DateTime     @updatedAt @map("updated_at") @db.Timestamptz(6)
@@ -383,6 +393,8 @@ model Task {
   @@index([deadline])
   @@index([createdById])
   @@index([createdAt(sort: Desc)])
+  @@index([isRevisionTask])
+  @@index([assignedTo, isRevisionTask])
   @@map("tasks")
 }
 

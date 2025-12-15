@@ -133,6 +133,8 @@ export function getRedirectPath(role: UserRole) {
       return '/member/dashboard'
     case UserRole.ORDER_CREATOR:
       return '/orders'
+    case UserRole.REVISION_MANAGER:
+      return '/revision/delivered-order'
     default:
       return '/dashboard'
   }

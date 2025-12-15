@@ -11,8 +11,12 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ message: 'Unauthorized' }, { status: 401 })
     }
 
-    // Allow ADMIN and ORDER_CREATOR to fetch teams
-    if (currentUser.role !== UserRole.ADMIN && currentUser.role !== UserRole.ORDER_CREATOR) {
+    // Allow ADMIN, ORDER_CREATOR, and REVISION_MANAGER to fetch teams
+    if (
+      currentUser.role !== UserRole.ADMIN && 
+      currentUser.role !== UserRole.ORDER_CREATOR &&
+      currentUser.role !== UserRole.REVISION_MANAGER
+    ) {
       return NextResponse.json({ message: 'Forbidden' }, { status: 403 })
     }
 

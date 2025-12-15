@@ -482,7 +482,10 @@ export default function AssignTasksPage() {
                             : 0
 
                           return (
-                            <TableRow key={order.id} className="cursor-pointer hover:bg-muted/50">
+                            <TableRow 
+                              key={order.id} 
+                              className="cursor-pointer hover:bg-muted/50"
+                            >
                               <TableCell className="font-medium">
                                 #{order.orderNumber}
                               </TableCell>

@@ -58,8 +58,15 @@ export async function GET(request: Request) {
                 teamId: true,
               },
             },
+            team: {
+              select: {
+                id: true,
+                name: true,
+              },
+            },
             assignedUser: {
               select: {
+                id: true,
                 displayName: true,
                 email: true,
               },
@@ -81,8 +88,21 @@ export async function GET(request: Request) {
                   },
                 },
               },
+              // Include revision tasks for the team leader's teams
+              {
+                isRevisionTask: true,
+                teamId: {
+                  in: teams.map((t: { id: string }) => t.id),
+                },
+              },
             ],
           },
+          orderBy: [
+            // Sort revision tasks first
+            { isRevisionTask: 'desc' },
+            { status: 'asc' },
+            { priority: 'desc' },
+          ],
         },
         askingTasks: {
           select: {

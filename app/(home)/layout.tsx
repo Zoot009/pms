@@ -34,6 +34,7 @@ export default async function HomeLayout({
   // Determine navigation groups and dashboard href based on role
   let navGroups = memberNavGroups
   let dashboardHref = '/member/dashboard'
+  let badgeCounts: Record<string, number> = {}
 
   if (user.role === UserRole.ADMIN) {
     navGroups = adminNavGroups
@@ -67,6 +68,19 @@ export default async function HomeLayout({
       navGroups = teamLeaderNavGroups
       dashboardHref = '/member/team/dashboard'
     }
+    
+    // Fetch revision task count for members
+    const revisionTaskCount = await prisma.task.count({
+      where: {
+        assignedTo: user.id,
+        isRevisionTask: true,
+        status: {
+          in: ['ASSIGNED', 'IN_PROGRESS'],
+        },
+      },
+    })
+    
+    badgeCounts['revision-tasks-count'] = revisionTaskCount
   }
 
   return (
@@ -81,6 +95,7 @@ export default async function HomeLayout({
         dashboardHref={dashboardHref}
         navGroups={navGroups}
         environment={environment}
+        badgeCounts={badgeCounts}
       />
       <SidebarInset>
         <PageHeader />

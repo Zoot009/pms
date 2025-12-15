@@ -2,13 +2,12 @@ import { type EmailOtpType } from '@supabase/supabase-js'
 import { type NextRequest, NextResponse } from 'next/server'
 
 import { createClient } from '@/lib/supabase/server'
-import { redirect } from 'next/navigation'
 import prisma from '@/lib/prisma'
-import { UserRole } from '@/lib/generated/prisma'
 
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url)
   const token_hash = searchParams.get('token_hash')
+  const code = searchParams.get('code')
   const type = searchParams.get('type') as EmailOtpType | null
   const next = searchParams.get('next') ?? '/'
   const redirectTo = new URL(request.url).origin
@@ -16,8 +15,10 @@ export async function GET(request: NextRequest) {
   console.log('=== Email Confirmation Started ===')
   console.log('Type:', type)
   console.log('Token hash present:', !!token_hash)
+  console.log('Code present:', !!code)
   console.log('Next URL:', next)
 
+  // Handle both old token_hash format and new code format
   if (token_hash && type) {
     const supabase = await createClient()
 
@@ -47,6 +48,65 @@ export async function GET(request: NextRequest) {
         try {
           const { data: { user } } = await supabase.auth.getUser()
           
+          if (user) {
+            // Check if user already exists in database
+            const existingUser = await prisma.user.findUnique({
+              where: { id: user.id }
+            })
+
+            if (!existingUser) {
+              // Extract user metadata
+              const firstName = user.user_metadata?.first_name || user.email?.split('@')[0] || 'User'
+              const lastName = user.user_metadata?.last_name || null
+              const displayName = lastName ? `${firstName} ${lastName}` : firstName
+
+              // Create user in database
+              const newUser = await prisma.user.create({
+                data: {
+                  id: user.id,
+                  email: user.email!,
+                  firstName,
+                  lastName,
+                  displayName,
+                },
+              })
+              
+              console.log('✅ User created successfully in database:', newUser.id, newUser.email)
+            }
+          }
+        } catch (syncError) {
+          console.error('❌ Error syncing user with database:', syncError)
+        }
+      }
+      
+      console.log('✅ OTP verification successful, redirecting to projects')
+      return NextResponse.redirect(`${redirectTo}/projects`)
+    } else {
+      console.error('❌ OTP verification failed:', error?.message || 'No session created')
+      // Redirect to login page with error message
+      return NextResponse.redirect(`${redirectTo}/auth/login?message=Email confirmation failed. Please try again or log in manually.`)
+    }
+  } else if (code) {
+    // Handle the newer code-based confirmation
+    const supabase = await createClient()
+
+    const { data, error } = await supabase.auth.exchangeCodeForSession(code)
+    
+    console.log('Code exchange result:', { 
+      success: !error, 
+      error: error?.message,
+      userId: data?.user?.id,
+      userEmail: data?.user?.email
+    })
+
+    if (!error && data.session) {
+      // For code-based confirmation, we assume it's signup confirmation
+      // since password recovery typically uses different flow
+      console.log('Code confirmation detected, attempting to sync user to database')
+        
+        try {
+          const { data: { user } } = await supabase.auth.getUser()
+          
           console.log('Fetched user from Supabase:', {
             id: user?.id,
             email: user?.email,
@@ -68,7 +128,6 @@ export async function GET(request: NextRequest) {
               // Extract user metadata
               const firstName = user.user_metadata?.first_name || user.email?.split('@')[0] || 'User'
               const lastName = user.user_metadata?.last_name || null
-              const employeeId = user.user_metadata?.employee_id || null
               const displayName = lastName ? `${firstName} ${lastName}` : firstName
 
               console.log('Creating user with data:', {
@@ -76,11 +135,10 @@ export async function GET(request: NextRequest) {
                 email: user.email,
                 firstName,
                 lastName,
-                employeeId,
                 displayName
               })
 
-              // Create user in database with MEMBER role by default
+              // Create user in database
               const newUser = await prisma.user.create({
                 data: {
                   id: user.id,
@@ -88,9 +146,6 @@ export async function GET(request: NextRequest) {
                   firstName,
                   lastName,
                   displayName,
-                  employeeId,
-                  role: UserRole.MEMBER, // Default role for self-registered users
-                  isActive: true,
                 },
               })
               
@@ -109,19 +164,22 @@ export async function GET(request: NextRequest) {
           // Don't fail the confirmation, just log the error
           // User can be synced later through the API
         }
-      }
       
-      console.log('Redirecting to:', next)
-      // redirect user to specified redirect URL or root of app
-      return NextResponse.redirect(`${redirectTo}${next}`)
+      console.log('✅ Confirmation successful, redirecting to projects')
+      // redirect user to projects page after successful confirmation
+      return NextResponse.redirect(`${redirectTo}/projects`)
     } else {
-      console.error('❌ OTP verification failed:', error?.message || 'No session created')
+      console.error('❌ Code exchange failed:', error?.message || 'No session created')
+      // Redirect to login page with success message for manual login
+      return NextResponse.redirect(`${redirectTo}/auth/login?message=Email confirmed! Please log in to continue.`)
     }
   } else {
-    console.error('❌ Missing token_hash or type in confirmation URL')
+    console.error('❌ Missing token_hash/code or type in confirmation URL')
+    // Redirect to login page instead of error page
+    return NextResponse.redirect(`${redirectTo}/auth/login?message=Please check your email and click the confirmation link, then log in.`)
   }
 
-  // redirect the user to an error page with some instructions
-  console.log('Redirecting to error page')
-  return NextResponse.redirect(`${redirectTo}/auth/error?message=Invalid or expired confirmation link`)
+  // This should never be reached, but just in case
+  console.log('Redirecting to login as fallback')
+  return NextResponse.redirect(`${redirectTo}/auth/login`)
 }

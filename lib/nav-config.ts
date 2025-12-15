@@ -91,6 +91,12 @@ export const memberNavGroups = [
         icon: 'ListTodo',
       },
       {
+        title: 'Revision Tasks',
+        href: '/member/revision-tasks',
+        icon: 'RotateCcw',
+        badge: 'revision-tasks-count', // Special identifier for badge
+      },
+      {
         title: 'Completed Tasks',
         href: '/member/completed',
         icon: 'CheckCircle2',
@@ -275,6 +281,29 @@ export const orderCreatorNavGroups = [
         title: 'Order Types',
         href: '/order-creator/order-types',
         icon: 'PackageSearch',
+      },
+    ],
+  },
+]
+
+export const revisionManagerNavGroups = [
+  {
+    title: 'REVISION MANAGEMENT',
+    items: [
+      {
+        title: 'Delivered Orders',
+        href: '/revision/delivered-order',
+        icon: 'PackageCheck',
+      },
+      {
+        title: 'Revision Orders',
+        href: '/revision/revision-order',
+        icon: 'RotateCcw',
+      },
+      {
+        title: 'Completed Revisions',
+        href: '/revision/completed-revision',
+        icon: 'CheckCircle2',
       },
     ],
   },

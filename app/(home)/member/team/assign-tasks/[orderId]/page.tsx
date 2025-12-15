@@ -44,13 +44,19 @@ interface Task {
   title: string
   deadline: string | null
   notes: string | null
+  isRevisionTask: boolean
+  teamId: string | null
+  team: {
+    id: string
+    name: string
+  } | null
   service: {
     id: string
     name: string
     type: string
     timeLimit: number | null
     teamId: string | null
-  }
+  } | null
   assignedUser: {
     id: string
     email: string
@@ -74,6 +80,7 @@ interface Order {
   deliveryDate: string
   deliveryTime: string | null
   folderLink: string | null
+  isRevision: boolean
   orderType: {
     name: string
   }
@@ -613,16 +620,24 @@ export default function OrderDetailPage() {
             <DialogHeader>
               <DialogTitle>Assign Task to Team Member</DialogTitle>
               <DialogDescription>
-                Order: {order.orderNumber} | Service: {selectedTask?.service.name}
+                Order: {order.orderNumber} | {selectedTask?.isRevisionTask ? 'Revision Task' : `Service: ${selectedTask?.service?.name}`}
               </DialogDescription>
             </DialogHeader>
 
             <div className="space-y-4">
               {/* Task Info */}
               <div className="p-3 bg-muted rounded-lg space-y-2">
-                <div className="font-medium">{selectedTask?.service?.name || 'Custom Task'}</div>
+                <div className="font-medium">
+                  {selectedTask?.isRevisionTask 
+                    ? selectedTask.title 
+                    : (selectedTask?.service?.name || 'Custom Task')
+                  }
+                </div>
                 <div className="text-sm text-muted-foreground">
-                  {selectedTask?.service?.type.replace('_', ' ') || 'Custom'}
+                  {selectedTask?.isRevisionTask 
+                    ? `Team: ${selectedTask.team?.name || 'Unknown'}` 
+                    : selectedTask?.service?.type.replace('_', ' ') || 'Custom'
+                  }
                   {selectedTask?.service?.timeLimit && ` · ${selectedTask.service.timeLimit}h time limit`}
                 </div>
                 <div className="flex items-center gap-2 text-sm">
@@ -840,15 +855,25 @@ export default function OrderDetailPage() {
                           <div className="flex-1">
                             <div className="flex items-start justify-between gap-2">
                               <div>
-                                <div className="font-medium text-sm">{task.title}</div>
+                                <div className="font-medium text-sm">
+                                  {task.isRevisionTask ? task.title : (task.service?.name || 'Custom Task')}
+                                </div>
                                 <div className="text-xs text-muted-foreground mt-1">
-                                  {task.service.name}
-                                  {task.service.timeLimit && ` · ${task.service.timeLimit}h time limit`}
+                                  {task.isRevisionTask 
+                                    ? `Team: ${task.team?.name || 'Unknown'}` 
+                                    : (task.service?.name || 'Custom Task')
+                                  }
+                                  {task.service?.timeLimit && ` · ${task.service.timeLimit}h time limit`}
                                 </div>
                               </div>
                               <div className="flex gap-1">
                                 {getStatusBadge(task.status)}
                                 {getPriorityBadge(task.priority)}
+                                {task.isRevisionTask && (
+                                  <Badge variant="outline" className="bg-orange-50 text-orange-700 border-orange-200">
+                                    REVISION
+                                  </Badge>
+                                )}
                               </div>
                             </div>
                           </div>

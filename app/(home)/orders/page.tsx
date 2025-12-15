@@ -61,13 +61,14 @@ export default function OrdersPage() {
 
   // Flatten all pages of orders
   const orders = useMemo(() => {
-    return data?.pages.flatMap((page) => page.orders) ?? []
+    return data?.pages.flatMap((page) => page.orders).filter(Boolean) ?? []
   }, [data])
 
   // Group orders by delivery date for grouped view
   const groupedOrders = useMemo(() => {
     const grouped: GroupedOrders = {}
     orders.forEach((order) => {
+      if (!order) return // Skip undefined orders
       const date = order.deliveryDate || 'no-date'
       if (!grouped[date]) {
         grouped[date] = []
