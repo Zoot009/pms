@@ -17,28 +17,9 @@ const prisma = new PrismaClient()
 
 // Member data from the file
 const members = [
-  { firstName: 'Pratik', employeeId: 'ZOOT1031', email: "pratik@pms.com" },
-  { firstName: 'Karuna', employeeId: 'ZOOT1006', email: "karuna@pms.com" },
-  { firstName: 'Sopan', employeeId: 'ZOOT1025', email: "sopan@pms.com" },
-  { firstName: 'Narayan', employeeId: 'ZOOT1003', email: "naryan@pms.com" },
-  { firstName: 'Aishwarya', employeeId: 'ZOOT1049', email: "aishwarya@pms.com" },
-  { firstName: 'Ronit', employeeId: 'ZOOT1012', email: "ronit@pms.com" },
-  { firstName: 'Srushti', employeeId: 'ZOOT1072', email: "srushti@pms.com" },
-  { firstName: 'Robin', employeeId: 'ZOOT1004', email: "robin@pms.com" },
-  { firstName: 'Shreedhar', employeeId: 'ZOOT1007', email: "shreedhar@pms.com" },
-  { firstName: 'Kunal', employeeId: 'ZOOT1008', email: "kunal@pms.com" },
-  { firstName: 'Neha', employeeId: 'ZOOT1042', email: "neha@pms.com" },
-  { firstName: 'Monika', employeeId: 'ZOOT1059', email: "monika@pms.com" },
-  { firstName: 'Jannat', employeeId: 'ZOOT1060', email: "jannat@pms.com" },
-  { firstName: 'Sneha', employeeId: 'ZOOT1061', email: "sneha@pms.com" },
-  { firstName: 'Kashish', employeeId: 'ZOOT1066', email: "kashish@pms.com" },
-  { firstName: 'Divya', employeeId: 'ZOOT1067', email: "divya@pms.com" },
-  { firstName: 'Shruti', employeeId: 'ZOOT1068', email: "shruti@pms.com" },
-  { firstName: 'Prarthana', employeeId: 'ZOOT1069', email: "prarthana@pms.com" },
-  { firstName: 'Asmita', employeeId: 'ZOOT1071', email: "asmita@pms.com" },
-  { firstName: 'Sashidaran', employeeId: 'ZOOT1076', email: "sashidaran@pms.com" },
-  { firstName: 'Kritika', employeeId: 'ZOOT1078', email: "kritika@pms.com" },
-  { firstName: 'Pranali', employeeId: 'ZOOT1011', email: "pranali@pms.com" }
+  { firstName: 'Surya', employeeId: 'ZOOT1031', email: "surya@pms.com" },
+  { firstName: 'Goblin', employeeId: 'ZOOT1006', email: "goblin@pms.com" },
+  { firstName: 'Sparky', employeeId: 'ZOOT1025', email: "sparky@pms.com" },
 ]
 
 async function addMembers() {

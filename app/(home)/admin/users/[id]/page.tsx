@@ -48,7 +48,7 @@ const userFormSchema = z.object({
   firstName: z.string().min(1, 'First name is required'),
   lastName: z.string().optional(),
   employeeId: z.string().optional(),
-  role: z.enum(['ADMIN', 'MEMBER', 'ORDER_CREATOR']),
+  role: z.enum(['ADMIN', 'MEMBER', 'ORDER_CREATOR', 'REVISION_MANAGER']),
 })
 
 type UserFormValues = z.infer<typeof userFormSchema>
@@ -377,6 +377,7 @@ export default function UserDetailPage({ params }: { params: Promise<{ id: strin
                         <SelectContent>
                           <SelectItem value="MEMBER">Member</SelectItem>
                           <SelectItem value="ORDER_CREATOR">Order Creator</SelectItem>
+                          <SelectItem value="REVISION_MANAGER">Revision Manager</SelectItem>
                           <SelectItem value="ADMIN">Admin</SelectItem>
                         </SelectContent>
                       </Select>
