@@ -157,25 +157,41 @@ export function RevisionTaskModal({
                 Assign to Member <span className="text-red-500">*</span>
               </Label>
               <Select value={memberId} onValueChange={setMemberId} disabled={createTaskMutation.isPending || isLoading}>
-                <SelectTrigger id="member">
-                  <SelectValue placeholder={isLoading ? "Loading members..." : "Select member"} />
+                <SelectTrigger id="member" className="h-auto min-h-10 py-2">
+                  <SelectValue placeholder={isLoading ? "Loading members..." : "Select a member to assign this task"}>
+                    {memberId && members.find(m => m.id === memberId) && (
+                      <div className="flex flex-col items-start py-1">
+                        <span className="font-medium">
+                          {members.find(m => m.id === memberId)?.displayName || members.find(m => m.id === memberId)?.email}
+                        </span>
+                      </div>
+                    )}
+                  </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
-                  {members.map((member) => (
-                    <SelectItem key={member.id} value={member.id}>
-                      <div className="flex flex-col">
-                        <span>{member.displayName || member.email}</span>
-                        {member.displayName && (
-                          <span className="text-xs text-muted-foreground">{member.email}</span>
-                        )}
-                      </div>
-                    </SelectItem>
-                  ))}
+                  {isLoading ? (
+                    <div className="flex items-center justify-center py-6">
+                      <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                      <span className="ml-2 text-sm text-muted-foreground">Loading members...</span>
+                    </div>
+                  ) : members.length === 0 ? (
+                    <div className="py-6 text-center text-sm text-muted-foreground">
+                      No members available
+                    </div>
+                  ) : (
+                    members.map((member) => (
+                      <SelectItem key={member.id} value={member.id} className="cursor-pointer">
+                        <div className="flex flex-col py-1">
+                          <span className="font-medium">{member.displayName || member.email}</span>
+                          {member.displayName && (
+                            <span className="text-xs text-muted-foreground">{member.email}</span>
+                          )}
+                        </div>
+                      </SelectItem>
+                    ))
+                  )}
                 </SelectContent>
               </Select>
-              <p className="text-xs text-muted-foreground">
-                Task will be directly assigned to the selected member
-              </p>
             </div>
 
             {/* Deadline Date */}

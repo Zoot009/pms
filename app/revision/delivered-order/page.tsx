@@ -295,12 +295,12 @@ export default function RevisionDeliveredOrdersPage() {
                     <div className="space-y-1">
                       <CardTitle className="text-xl flex items-center gap-2">
                         <PackageCheck className="h-5 w-5 text-green-600" />
-                        {order.orderNumber}
+                        {order.customerName}
                       </CardTitle>
                       <CardDescription>
                         <div className="flex flex-wrap gap-x-4 gap-y-1 mt-1">
                           <span className="flex items-center gap-1">
-                            <strong>Customer:</strong> {order.customerName}
+                            <strong>Order Number:</strong> {order.orderNumber}
                           </span>
                           <span className="flex items-center gap-1">
                             <strong>Type:</strong> {order.orderType.name}
