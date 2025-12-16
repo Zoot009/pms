@@ -1,5 +1,4 @@
 import { redirect } from 'next/navigation'
-import prisma from '@/lib/prisma'
 import { getCurrentUser } from '@/lib/auth-utils'
 import { AppSidebar } from '@/components/app-sidebar'
 import { PageHeader } from '@/components/page-header'
@@ -17,12 +16,8 @@ export default async function RevisionLayout({
   }
 
   // Check if user has REVISION_MANAGER or ADMIN role
-  const dbUser = await prisma.user.findUnique({
-    where: { id: user.id },
-    select: { role: true },
-  })
-
-  if (!dbUser || (dbUser.role !== 'REVISION_MANAGER' && dbUser.role !== 'ADMIN')) {
+  // No need to query DB again - we already have the user role from auth
+  if (user.role !== 'REVISION_MANAGER' && user.role !== 'ADMIN') {
     redirect('/auth/unauthorized')
   }
 

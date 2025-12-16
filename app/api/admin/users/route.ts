@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@supabase/supabase-js'
 import prisma from '@/lib/prisma'
 import { getCurrentUser, createAuditLog } from '@/lib/auth-utils'
 import { UserRole, AuditAction } from '@/lib/generated/prisma'
+import { createAdminClient } from '@/lib/supabase/admin'
 
 // Generate default password based on first name
 function generateDefaultPassword(firstName: string): string {
@@ -24,17 +24,9 @@ export async function POST(request: NextRequest) {
     // Generate default password based on first name
     const defaultPassword = generateDefaultPassword(firstName)
 
-    // Create user in Supabase Auth with service role
-    const supabase = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!,
-      {
-        auth: {
-          autoRefreshToken: false,
-          persistSession: false
-        }
-      }
-    )
+    // Create user in Supabase Auth with service role - using secure admin client
+    const supabase = createAdminClient()
+    
     console.log("Password:", defaultPassword)
     const { data: authData, error: authError } = await supabase.auth.admin.createUser({
       email,

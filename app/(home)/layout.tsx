@@ -4,13 +4,14 @@ import { AppSidebar } from '@/components/app-sidebar'
 import { PageHeader } from '@/components/page-header'
 import { SidebarProvider, SidebarInset } from '@/components/ui/sidebar'
 import { UserRole } from '@/lib/generated/prisma'
-import prisma from '@/lib/prisma'
 import {
   adminNavGroups,
   memberNavGroups,
   teamLeaderNavGroups,
   orderCreatorNavGroups,
 } from '@/lib/nav-config'
+import { checkIsTeamLeader } from '@/lib/data/user-queries'
+import { getRevisionTaskCount } from '@/lib/data/badge-counts'
 
 export default async function HomeLayout({
   children,
@@ -41,28 +42,14 @@ export default async function HomeLayout({
     dashboardHref = '/admin/dashboard'
   } else if (user.role === UserRole.ORDER_CREATOR) {
     // Check if order creator is also a team leader
-    const isTeamLeader = await prisma.team.findFirst({
-      where: {
-        leaderId: user.id,
-      },
-      select: {
-        id: true,
-      },
-    })
+    const isTeamLeader = await checkIsTeamLeader(user.id)
 
     // Order creators get their nav groups (which now include team management if they're leaders)
     navGroups = orderCreatorNavGroups
     dashboardHref = isTeamLeader ? '/member/team/dashboard' : '/order-creator/dashboard'
   } else if (user.role === UserRole.MEMBER) {
     // Check if user is a team leader
-    const isTeamLeader = await prisma.team.findFirst({
-      where: {
-        leaderId: user.id,
-      },
-      select: {
-        id: true,
-      },
-    })
+    const isTeamLeader = await checkIsTeamLeader(user.id)
 
     if (isTeamLeader) {
       navGroups = teamLeaderNavGroups
@@ -70,15 +57,7 @@ export default async function HomeLayout({
     }
     
     // Fetch revision task count for members
-    const revisionTaskCount = await prisma.task.count({
-      where: {
-        assignedTo: user.id,
-        isRevisionTask: true,
-        status: {
-          in: ['ASSIGNED', 'IN_PROGRESS'],
-        },
-      },
-    })
+    const revisionTaskCount = await getRevisionTaskCount(user.id)
     
     badgeCounts['revision-tasks-count'] = revisionTaskCount
   }

@@ -1,6 +1,6 @@
 import { redirect } from 'next/navigation'
 import { getCurrentUser } from '@/lib/auth-utils'
-import prisma from '@/lib/prisma'
+import { getUserTeams } from '@/lib/data/user-queries'
 
 export default async function TeamLayout({
   children,
@@ -20,17 +20,8 @@ export default async function TeamLayout({
     role: user.role
   })
 
-  // Check if user is a team leader - query the database directly
-  const teams = await prisma.team.findMany({
-    where: {
-      leaderId: user.id,
-    },
-    select: {
-      id: true,
-      name: true,
-      isActive: true,
-    },
-  })
+  // Check if user is a team leader - use cached query to prevent N+1 problem
+  const teams = await getUserTeams(user.id)
 
   console.log('[Team Layout] Team query result:', {
     totalTeams: teams.length,

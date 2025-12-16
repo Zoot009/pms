@@ -15,7 +15,6 @@ import {
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { toast } from 'sonner'
 import { Loader2, User, CheckCircle2, Clock, AlertCircle } from 'lucide-react'
-import { PageHeader } from '@/components/page-header'
 
 interface TeamMember {
   id: string

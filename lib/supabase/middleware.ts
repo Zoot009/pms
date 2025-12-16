@@ -7,11 +7,12 @@ export async function updateSession(request: NextRequest) {
   const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
   if (!supabaseUrl || !supabaseAnonKey) {
-    console.error('Missing Supabase environment variables in middleware');
-    // Allow request to continue without auth check
-    return NextResponse.next({
-      request,
-    });
+    console.error('CRITICAL: Missing Supabase environment variables in middleware');
+    // Fail fast - do not allow requests without proper configuration
+    return NextResponse.json(
+      { error: 'Configuration error - please contact system administrator' },
+      { status: 500 }
+    );
   }
 
   let supabaseResponse = NextResponse.next({

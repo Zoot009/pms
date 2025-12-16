@@ -326,6 +326,11 @@ model Order {
   @@index([isRevision])
   @@index([revisionOrderId])
   @@index([revisionCompletedAt])
+  // Composite indexes for common query patterns
+  @@index([status, deliveryDate])
+  @@index([isRevision, status])
+  @@index([orderTypeId, status])
+  @@index([status, createdAt(sort: Desc)])
   @@map("orders")
 }
 
@@ -395,6 +400,10 @@ model Task {
   @@index([createdAt(sort: Desc)])
   @@index([isRevisionTask])
   @@index([assignedTo, isRevisionTask])
+  // Composite indexes for common query patterns
+  @@index([assignedTo, status, deadline])
+  @@index([teamId, status, priority])
+  @@index([orderId, status, isMandatory])
   @@map("tasks")
 }
 
