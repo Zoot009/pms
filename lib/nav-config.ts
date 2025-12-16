@@ -22,6 +22,11 @@ export const adminNavGroups = [
         href: '/asking-tasks',
         icon: 'ClipboardList',
       },
+      {
+        title: 'Revision Orders',
+        href: '/revision-orders',
+        icon: 'RotateCcw',
+      },
     ],
   },
   {
@@ -121,6 +126,11 @@ export const memberNavGroups = [
         href: '/asking-tasks',
         icon: 'ClipboardList',
       },
+      {
+        title: 'Revision Orders',
+        href: '/revision-orders',
+        icon: 'RotateCcw',
+      },
     ],
   },
 ]
@@ -189,6 +199,11 @@ export const teamLeaderNavGroups = [
         href: '/asking-tasks',
         icon: 'ClipboardList',
       },
+      {
+        title: 'Revision Orders',
+        href: '/revision-orders',
+        icon: 'RotateCcw',
+      },
     ],
   },
 ]
@@ -226,6 +241,11 @@ export const orderCreatorNavGroups = [
         title: 'Data to Folder',
         href: '/order-creator/data-to-folder',
         icon: 'ClipboardList',
+      },
+      {
+        title: 'Revision Orders',
+        href: '/revision-orders',
+        icon: 'RotateCcw',
       },
     ],
   },
@@ -304,6 +324,16 @@ export const revisionManagerNavGroups = [
         title: 'Completed Revisions',
         href: '/revision/completed-revision',
         icon: 'CheckCircle2',
+      },
+    ],
+  },
+  {
+    title: 'ORDERS',
+    items: [
+      {
+        title: 'All Revision Orders',
+        href: '/revision-orders',
+        icon: 'RotateCcw',
       },
     ],
   },

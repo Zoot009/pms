@@ -20,7 +20,9 @@ export async function GET(req: NextRequest) {
     const page = parseInt(searchParams.get('page') || '1')
     const limit = parseInt(searchParams.get('limit') || '20')
 
-    const whereCondition: any = {}
+    const whereCondition: any = {
+      isRevision: false, // Exclude revision orders from main orders page
+    }
 
     // Members can only see orders they're assigned to (unless viewing all)
     if (currentUser.role === 'MEMBER' && assignedToMe) {
