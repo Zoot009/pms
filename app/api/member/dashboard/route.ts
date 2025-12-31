@@ -16,7 +16,7 @@ export async function GET() {
     const now = new Date()
     const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate())
 
-    // Get all tasks assigned to this member
+    // Get all tasks assigned to this member (including all instances of the same service)
     const allTasks = await prisma.task.findMany({
       where: {
         assignedTo: user.id,
@@ -27,6 +27,11 @@ export async function GET() {
             orderNumber: true,
             customerName: true,
             deliveryDate: true,
+          },
+        },
+        orderService: {
+          select: {
+            id: true,
           },
         },
         service: {
@@ -41,7 +46,7 @@ export async function GET() {
       },
     })
 
-    // Get all asking tasks completed by this member
+    // Get all asking tasks completed by this member (including all instances)
     const completedAskingTasks = await prisma.askingTask.findMany({
       where: {
         completedBy: user.id,
@@ -52,6 +57,11 @@ export async function GET() {
             orderNumber: true,
             customerName: true,
             deliveryDate: true,
+          },
+        },
+        orderService: {
+          select: {
+            id: true,
           },
         },
         service: {
@@ -66,19 +76,44 @@ export async function GET() {
       },
     })
 
-    // Calculate statistics
-    const completedAskingTodayCount = completedAskingTasks.filter(
+    // Calculate statistics - each task instance is counted separately
+    const completedTasksToday = allTasks.filter(
+      (t) => t.status === 'COMPLETED' && t.completedAt && t.completedAt >= startOfToday
+    )
+    const completedAskingTasksToday = completedAskingTasks.filter(
       (t) => t.completedAt && t.completedAt >= startOfToday
-    ).length
+    )
+    
+    const completedTodayCount = completedTasksToday.length + completedAskingTasksToday.length
+
+    // Log for debugging (can be removed in production)
+    console.log(`[Dashboard Stats] User: ${user.id}`)
+    console.log(`  Total tasks: ${allTasks.length}`)
+    console.log(`  Completed today (tasks): ${completedTasksToday.length}`)
+    console.log(`  Completed today (asking): ${completedAskingTasksToday.length}`)
+    console.log(`  Total completed today: ${completedTodayCount}`)
+    
+    // Log details of completed tasks today for verification
+    if (completedTasksToday.length > 0) {
+      console.log('  Completed tasks today details:')
+      completedTasksToday.forEach(t => {
+        console.log(`    - ${t.id} | ${t.title} | OrderService: ${t.orderServiceId || 'N/A'} | Order: ${t.order.orderNumber}`)
+      })
+    }
+    
+    if (completedAskingTasksToday.length > 0) {
+      console.log('  Completed asking tasks today details:')
+      completedAskingTasksToday.forEach(t => {
+        console.log(`    - ${t.id} | ${t.title} | OrderService: ${t.orderServiceId || 'N/A'} | Order: ${t.order.orderNumber}`)
+      })
+    }
 
     const stats = {
       totalTasks: allTasks.length,
       assignedCount: allTasks.filter((t) => t.status === 'ASSIGNED').length,
       inProgressCount: allTasks.filter((t) => t.status === 'IN_PROGRESS').length,
       pausedCount: allTasks.filter((t) => t.status === 'PAUSED').length,
-      completedTodayCount: allTasks.filter(
-        (t) => t.status === 'COMPLETED' && t.completedAt && t.completedAt >= startOfToday
-      ).length + completedAskingTodayCount,
+      completedTodayCount,
       completedTotal: allTasks.filter((t) => t.status === 'COMPLETED').length + completedAskingTasks.length,
       overdueCount: allTasks.filter(
         (t) =>

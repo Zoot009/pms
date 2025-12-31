@@ -164,10 +164,6 @@ export default function NewOrderPage() {
     }
   }
 
-  const handleRemoveInstance = (instanceId: string) => {
-    setServiceInstances(prev => prev.filter(inst => inst.instanceId !== instanceId))
-  }
-
   const handleAddService = (serviceId: string) => {
     const service = allServices.find(s => s.id === serviceId)
     if (service) {

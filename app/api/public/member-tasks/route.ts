@@ -184,6 +184,7 @@ export async function GET(request: NextRequest) {
         deadline: Date | null
       }[]
       totalTasks: number
+      assignedTasksCount: number
     }>()
 
     // Process service tasks
@@ -203,6 +204,7 @@ export async function GET(request: NextRequest) {
           serviceTasks: [],
           askingTasks: [],
           totalTasks: 0,
+          assignedTasksCount: 0,
         })
       }
 
@@ -239,6 +241,7 @@ export async function GET(request: NextRequest) {
           serviceTasks: [],
           askingTasks: [],
           totalTasks: 0,
+          assignedTasksCount: 0,
         })
       }
 
@@ -261,6 +264,90 @@ export async function GET(request: NextRequest) {
       memberData.totalTasks++
     }
 
+    // Fetch currently assigned (non-completed) service tasks
+    const assignedServiceTasks = await prisma.task.findMany({
+      where: {
+        assignedTo: { not: null },
+        status: { not: TaskStatus.COMPLETED },
+      },
+      include: {
+        assignedUser: {
+          select: {
+            id: true,
+            displayName: true,
+            email: true,
+            employeeId: true,
+          },
+        },
+      },
+    })
+
+    // Fetch currently assigned asking tasks (not completed)
+    const assignedAskingTasks = await prisma.askingTask.findMany({
+      where: {
+        assignedTo: { not: null },
+        completedBy: null,
+      },
+      include: {
+        assignedUser: {
+          select: {
+            id: true,
+            displayName: true,
+            email: true,
+            employeeId: true,
+          },
+        },
+      },
+    })
+
+    // Process assigned service tasks
+    for (const t of assignedServiceTasks) {
+      if (!t.assignedUser) continue
+
+      const uid = t.assignedUser.id
+      if (!memberTasksMap.has(uid)) {
+        memberTasksMap.set(uid, {
+          member: {
+            id: t.assignedUser.id,
+            displayName: t.assignedUser.displayName,
+            email: t.assignedUser.email,
+            employeeId: t.assignedUser.employeeId,
+          },
+          serviceTasks: [],
+          askingTasks: [],
+          totalTasks: 0,
+          assignedTasksCount: 0,
+        })
+      }
+
+      const m = memberTasksMap.get(uid)!
+      m.assignedTasksCount = (m.assignedTasksCount || 0) + 1
+    }
+
+    // Process assigned asking tasks
+    for (const t of assignedAskingTasks) {
+      if (!t.assignedUser) continue
+
+      const uid = t.assignedUser.id
+      if (!memberTasksMap.has(uid)) {
+        memberTasksMap.set(uid, {
+          member: {
+            id: t.assignedUser.id,
+            displayName: t.assignedUser.displayName,
+            email: t.assignedUser.email,
+            employeeId: t.assignedUser.employeeId,
+          },
+          serviceTasks: [],
+          askingTasks: [],
+          totalTasks: 0,
+          assignedTasksCount: 0,
+        })
+      }
+
+      const m = memberTasksMap.get(uid)!
+      m.assignedTasksCount = (m.assignedTasksCount || 0) + 1
+    }
+
     // Convert map to array and sort by total tasks
     const memberTasksArray = Array.from(memberTasksMap.values()).sort(
       (a, b) => b.totalTasks - a.totalTasks
@@ -272,6 +359,7 @@ export async function GET(request: NextRequest) {
       totalServiceTasks: serviceTasks.length,
       totalAskingTasks: askingTasks.length,
       totalTasks: serviceTasks.length + askingTasks.length,
+      totalAssignedTasks: (assignedServiceTasks?.length || 0) + (assignedAskingTasks?.length || 0),
       dateRange: {
         specificDate: specificDate || null,
         startDate: startDate || null,
